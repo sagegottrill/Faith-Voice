@@ -10,7 +10,9 @@ import VoiceTranscript from './VoiceTranscript';
 import VerseDisplay from './VerseDisplay';
 import ExamplePhrases from './ExamplePhrases';
 import SavedVersesPanel from './SavedVersesPanel';
-import { Search, Bookmark } from 'lucide-react';
+import { useSemanticSearch } from '@/hooks/useSemanticSearch';
+import { classifyIntent } from '@/utils/intentClassifier';
+import { Search, Bookmark, Sparkles } from 'lucide-react';
 
 interface VerseResponse {
     verses: Verse[];
@@ -40,6 +42,8 @@ const AppLayout: React.FC = () => {
         deleteVerse
     } = useSavedVerses();
 
+    const { search: semanticSearch, isReady: isSemanticReady, isLoading: isSemanticLoading } = useSemanticSearch();
+
     const [verses, setVerses] = useState<Verse[]>([]);
     const [reference, setReference] = useState('');
     const [translation, setTranslation] = useState('');
@@ -49,6 +53,7 @@ const AppLayout: React.FC = () => {
     const [showManualInput, setShowManualInput] = useState(false);
     const [manualInput, setManualInput] = useState('');
     const [showSavedPanel, setShowSavedPanel] = useState(false);
+    const [lastIntent, setLastIntent] = useState<string | null>(null);
 
     // Fetch verses from local JSON
     const fetchVerses = useCallback(async (ref: VerseReference) => {
@@ -88,6 +93,19 @@ const AppLayout: React.FC = () => {
     // Process transcript when speech ends
     useEffect(() => {
         if (!isListening && transcript && !isLoading) {
+
+            // 1. Intent Gatekeeper
+            const intent = classifyIntent(transcript);
+            setLastIntent(intent.type);
+
+            // If it's just a story/conversation, ignore it.
+            if (intent.type === 'NARRATIVE') {
+                console.log('Ignored Narrative:', transcript);
+                // We could set a temporary UI state here to show "Ignored"
+                // For now, we rely on the visual feedback of *not* searching.
+                return;
+            }
+
             const ref = parseVerseReference(transcript);
             if (ref) {
                 fetchVerses(ref);
@@ -100,10 +118,33 @@ const AppLayout: React.FC = () => {
                     setFetchError(null);
                 } else {
                     setFetchError(`Couldn't find any verses matching "${transcript}".`);
+
+                    // Fallback to Semantic Search
+                    if (isSemanticReady) {
+                        setFetchError(null);
+                        setIsLoading(true);
+                        semanticSearch(transcript).then(results => {
+                            if (results.length > 0) {
+                                // Fetch the full verse text for the top result
+                                const topResult = results[0];
+                                const ref = parseVerseReference(topResult.reference);
+                                if (ref) {
+                                    fetchVerses(ref);
+                                    setReference(formatVerseReference(ref));
+                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                }
+                            } else {
+                                setFetchError(`No verses found matching "${transcript}"`);
+                            }
+                            setIsLoading(false);
+                        });
+                    }
                 }
             }
+        } else if (isListening) {
+            setLastIntent(null);
         }
-    }, [isListening, transcript, fetchVerses, isLoading]);
+    }, [isListening, transcript, fetchVerses, isLoading, isSemanticReady, semanticSearch]);
 
     // Handle microphone button click
     const handleMicClick = () => {
@@ -113,6 +154,7 @@ const AppLayout: React.FC = () => {
             resetTranscript();
             setVerses([]);
             setFetchError(null);
+            setLastIntent(null);
             startListening();
         }
     };
@@ -151,6 +193,29 @@ const AppLayout: React.FC = () => {
                     setShowManualInput(false);
                 } else {
                     setFetchError(`Couldn't find any verses matching "${manualInput}".`);
+
+                    // Fallback to Semantic Search
+                    if (isSemanticReady) {
+                        setFetchError(null);
+                        setIsLoading(true);
+                        semanticSearch(manualInput).then(results => {
+                            if (results.length > 0) {
+                                // Fetch the full verse text for the top result
+                                const topResult = results[0];
+                                const ref = parseVerseReference(topResult.reference);
+                                if (ref) {
+                                    fetchVerses(ref);
+                                    setReference(formatVerseReference(ref));
+                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                }
+                            } else {
+                                setFetchError(`No verses found matching "${manualInput}"`);
+                            }
+                            setManualInput('');
+                            setShowManualInput(false);
+                            setIsLoading(false);
+                        });
+                    }
                 }
             }
         }
@@ -162,6 +227,7 @@ const AppLayout: React.FC = () => {
         setReference('');
         setFetchError(null);
         resetTranscript();
+        setLastIntent(null);
     };
 
     // Navigate to previous/next verse
@@ -316,6 +382,13 @@ const AppLayout: React.FC = () => {
                                             error={speechError}
                                         />
                                     </div>
+
+                                    {/* Intent Feedback */}
+                                    {lastIntent === 'NARRATIVE' && (
+                                        <div className="px-3 py-1 bg-secondary rounded-full text-xs font-medium text-muted-foreground animate-in fade-in slide-in-from-top-2">
+                                            Ignored narrative speech
+                                        </div>
+                                    )}
 
                                     <p className="text-muted-foreground/60 text-sm mt-4 font-medium tracking-wide uppercase">
                                         {isListening ? 'Listening...' : 'Tap Mic to Speak'}

@@ -1,0 +1,19 @@
+directories:
+  output: dist_electron
+  buildResources: build
+appId: com.sage.voicebible
+productName: VoiceBible
+files:
+  - filter:
+      - dist/**/*
+      - electron/**/*
+      - node_modules/**/*
+      - package.json
+win:
+  target:
+    - nsis
+  icon: public/favicon.svg
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+electronVersion: 40.0.0

@@ -3,6 +3,7 @@ import useEmblaCarousel from 'embla-carousel-react';
 import {
   ChevronLeft,
   ChevronRight,
+  ArrowLeft,
   X,
   BookOpen,
   Bookmark,
@@ -143,6 +144,19 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
           <div className="flex gap-2">
             <button
+              // @ts-expect-error - Electron bridge
+              onClick={() => window.electronAPI?.projectVerse({
+                text: verses[selectedIndex]?.text,
+                reference: reference,
+                translation: translation,
+                verseNumber: verses[selectedIndex]?.verse
+              })}
+              className="p-3 bg-secondary/50 hover:bg-secondary rounded-full text-muted-foreground hover:text-accent transition-all"
+              title="Project to Second Screen"
+            >
+              <Maximize2 className="w-5 h-5" />
+            </button>
+            <button
               onClick={togglePresentation}
               className="p-3 bg-secondary/50 hover:bg-secondary rounded-full text-muted-foreground hover:text-accent transition-all"
               title="Enter Presentation Mode"
@@ -204,12 +218,12 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
                     {/* Verse Text */}
                     <p className={`
-                      leading-relaxed
+                      leading-relaxed break-words whitespace-normal
                       ${isPresentationMode
                         ? 'text-4xl md:text-6xl text-white drop-shadow-2xl font-serif'
                         : 'text-2xl md:text-4xl text-foreground font-serif'
                       }
-                    `} style={{ lineHeight: 1.6 }}>
+                    `} style={{ lineHeight: 1.6, wordWrap: 'break-word', overflowWrap: 'break-word' }}>
                       {isPresentationMode && <span className="text-[#D4AF37] align-top text-2xl mr-2 font-sans opacity-80">{verse.verse}</span>}
                       {verse.text}
                     </p>

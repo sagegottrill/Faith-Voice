@@ -4,6 +4,7 @@ interface VoiceTranscriptProps {
   transcript: string;
   interimTranscript: string;
   isListening: boolean;
+  isProcessing?: boolean;
   error: string | null;
 }
 
@@ -11,6 +12,7 @@ const VoiceTranscript: React.FC<VoiceTranscriptProps> = ({
   transcript,
   interimTranscript,
   isListening,
+  isProcessing,
   error
 }) => {
   const hasContent = transcript || interimTranscript;
@@ -32,6 +34,12 @@ const VoiceTranscript: React.FC<VoiceTranscriptProps> = ({
       {isListening && !hasContent && (
         <p className="text-muted-foreground text-center text-sm md:text-base italic">
           Listening... speak a Bible verse
+        </p>
+      )}
+
+      {isProcessing && (
+        <p className="text-accent text-center text-sm md:text-base animate-pulse font-medium">
+          Transcribing audio...
         </p>
       )}
 

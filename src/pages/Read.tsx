@@ -49,7 +49,7 @@ const ReadPage: React.FC = () => {
         // Simple chapter navigation
         if (!selectedBook) return;
 
-        let newChapter = direction === 'next' ? selectedChapter + 1 : selectedChapter - 1;
+        const newChapter = direction === 'next' ? selectedChapter + 1 : selectedChapter - 1;
 
         if (newChapter < 1) return; // Can't go before chapter 1
         if (newChapter > selectedBook.chapters) return; // Can't go after last chapter
