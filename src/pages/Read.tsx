@@ -58,7 +58,7 @@ const ReadPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bible-gradient text-white">
+        <div className="min-h-screen bg-background text-foreground transition-colors duration-500">
             <Navigation />
 
             <div className="pt-24 px-4 max-w-6xl mx-auto pb-16">
@@ -67,17 +67,17 @@ const ReadPage: React.FC = () => {
                 <div className="flex items-center gap-2 mb-8 text-sm md:text-base">
                     <button
                         onClick={handleBackToBooks}
-                        className={`hover:text-[#D4AF37] transition-colors ${view === 'books' ? 'font-bold text-[#D4AF37]' : 'text-white/60'}`}
+                        className={`transition-colors ${view === 'books' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                         Books
                     </button>
 
                     {selectedBook && (
                         <>
-                            <ChevronRight className="w-4 h-4 text-white/40" />
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
                             <button
                                 onClick={handleBackToChapters}
-                                className={`hover:text-[#D4AF37] transition-colors ${view === 'chapters' ? 'font-bold text-[#D4AF37]' : 'text-white/60'}`}
+                                className={`transition-colors ${view === 'chapters' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
                             >
                                 {selectedBook.name}
                             </button>
@@ -86,8 +86,8 @@ const ReadPage: React.FC = () => {
 
                     {view === 'verses' && (
                         <>
-                            <ChevronRight className="w-4 h-4 text-white/40" />
-                            <span className="font-bold text-[#D4AF37]">Chapter {selectedChapter}</span>
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                            <span className="font-bold text-accent">Chapter {selectedChapter}</span>
                         </>
                     )}
                 </div>
@@ -95,21 +95,33 @@ const ReadPage: React.FC = () => {
                 {/* Views */}
                 {view === 'books' && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <h1 className="text-4xl font-bold mb-8 text-center" style={{ fontFamily: "'Crimson Text', serif" }}>
-                            Select a Book
-                        </h1>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div className="text-center mb-10">
+                            <h1 className="text-4xl font-serif font-bold text-foreground mb-4">
+                                Sacred Library
+                            </h1>
+                            <p className="text-muted-foreground max-w-lg mx-auto">
+                                Select a book to begin your reading journey.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                             {BIBLE_BOOKS.map((book) => (
                                 <button
                                     key={book.name}
                                     onClick={() => handleBookClick(book)}
-                                    className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-left transition-all hover:scale-[1.02} group"
+                                    className="lush-card p-5 text-left group hover:scale-[1.02] active:scale-95 border-l-4 border-l-transparent hover:border-l-accent"
                                 >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-lg">{book.name}</span>
-                                        <BookOpen className="w-4 h-4 text-white/20 group-hover:text-[#D4AF37] transition-colors" />
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${['Matthew', 'Mark', 'Luke', 'John'].includes(book.name) ? 'bg-accent/10 text-accent' : 'bg-secondary text-muted-foreground group-hover:bg-accent/5 group-hover:text-accent'}`}>
+                                            <BookOpen className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-xs font-mono text-muted-foreground/60">{book.chapters} CH</span>
                                     </div>
-                                    <span className="text-xs text-white/40 mt-1 block">{book.chapters} Chapters</span>
+
+                                    <h3 className="text-lg font-bold text-foreground group-hover:text-accent transition-colors font-serif">
+                                        {book.name}
+                                    </h3>
+                                    <div className="h-0.5 w-8 bg-border mt-3 group-hover:w-full group-hover:bg-accent/50 transition-all duration-500" />
                                 </button>
                             ))}
                         </div>
@@ -118,21 +130,22 @@ const ReadPage: React.FC = () => {
 
                 {view === 'chapters' && selectedBook && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="flex items-center gap-4 mb-8">
-                            <button onClick={handleBackToBooks} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
+                        <div className="flex flex-col items-center mb-10">
+                            <button onClick={handleBackToBooks} className="mb-6 p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-foreground">
                                 <ArrowLeft className="w-5 h-5" />
                             </button>
-                            <h1 className="text-3xl font-bold" style={{ fontFamily: "'Crimson Text', serif" }}>
+                            <h1 className="text-4xl font-serif font-bold text-foreground mb-2">
                                 {selectedBook.name}
                             </h1>
+                            <p className="text-muted-foreground">Select a chapter</p>
                         </div>
 
-                        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-10 gap-3">
+                        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-3">
                             {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map((chapter) => (
                                 <button
                                     key={chapter}
                                     onClick={() => handleChapterClick(chapter)}
-                                    className="aspect-square flex items-center justify-center bg-white/5 hover:bg-[#D4AF37] hover:text-[#0F1629] border border-white/10 rounded-lg text-lg font-medium transition-all"
+                                    className="aspect-square flex items-center justify-center bg-card hover:bg-accent hover:text-accent-foreground border border-border hover:border-accent rounded-xl text-lg font-medium transition-all shadow-sm hover:shadow-md hover:-translate-y-1"
                                 >
                                     {chapter}
                                 </button>

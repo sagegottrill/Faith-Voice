@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Search, Keyboard, Bookmark, Menu, X } from 'lucide-react';
+import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Sun, Moon } from 'lucide-react';
 
 interface NavigationProps {
     onManualSearchClick?: () => void;
@@ -15,80 +15,86 @@ const Navigation: React.FC<NavigationProps> = ({
 }) => {
     const location = useLocation();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+    const [scrolled, setScrolled] = useState(false);
+
+    // Handle scroll effect for glass header
+    useEffect(() => {
+        const handleScroll = () => {
+            setScrolled(window.scrollY > 20);
+        };
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     const isActive = (path: string) => location.pathname === path;
 
     return (
-        <header className="fixed top-0 left-0 right-0 z-50 bg-[#0F1629]/80 backdrop-blur-md border-b border-white/10">
-            <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <header
+            className={`
+        fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-in-out px-4 py-3
+        ${scrolled ? 'bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm' : 'bg-transparent'}
+      `}
+        >
+            <div className={`
+        max-w-6xl mx-auto flex items-center justify-between
+        ${scrolled ? 'py-1' : 'py-3'}
+        transition-all duration-500
+      `}>
                 {/* Logo */}
                 <Link to="/" className="flex items-center gap-3 group">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#B8960C] flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
-                        <BookOpen className="w-5 h-5 text-[#0F1629]" />
+                    <div className="relative">
+                        <div className="absolute inset-0 bg-accent blur-lg opacity-20 group-hover:opacity-40 transition-opacity duration-500 rounded-full" />
+                        <div className="relative w-11 h-11 rounded-2xl bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center shadow-lg shadow-accent/20 group-hover:scale-105 transition-transform duration-300">
+                            <BookOpen className="w-5 h-5 text-accent-foreground" />
+                        </div>
                     </div>
                     <div>
-                        <h1 className="text-lg font-bold text-white" style={{ fontFamily: "'Crimson Text', serif" }}>
+                        <h1 className="text-xl font-bold text-foreground tracking-tight" style={{ fontFamily: "'Crimson Text', serif" }}>
                             VoiceBible
                         </h1>
-                        <p className="text-xs text-white/50">Speak. Find. Read.</p>
+                        <p className="text-xs text-muted-foreground font-medium tracking-wide uppercase opacity-70">
+                            Speak • Find • Read
+                        </p>
                     </div>
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-6">
-                    <nav className="flex items-center gap-6 mr-6 border-r border-white/10 pr-6">
-                        <Link
-                            to="/"
-                            className={`text-sm font-medium transition-colors ${isActive('/') ? 'text-[#D4AF37]' : 'text-white/70 hover:text-white'}`}
-                        >
-                            Search
-                        </Link>
-                        <Link
-                            to="/read"
-                            className={`text-sm font-medium transition-colors ${isActive('/read') ? 'text-[#D4AF37]' : 'text-white/70 hover:text-white'}`}
-                        >
-                            Read
-                        </Link>
-                        <Link
-                            to="/about"
-                            className={`text-sm font-medium transition-colors ${isActive('/about') ? 'text-[#D4AF37]' : 'text-white/70 hover:text-white'}`}
-                        >
-                            About
-                        </Link>
-                    </nav>
+                <div className="hidden md:flex items-center gap-2 bg-white/5 backdrop-blur-sm p-1.5 rounded-full border border-white/10 shadow-sm">
+                    <NavLink to="/" label="Search" active={isActive('/')} icon={<Search className="w-4 h-4" />} />
+                    <NavLink to="/read" label="Read" active={isActive('/read')} icon={<BookOpen className="w-4 h-4" />} />
+                    <NavLink to="/about" label="About" active={isActive('/about')} />
+                </div>
 
-                    <div className="flex items-center gap-2">
-                        {onManualSearchClick && (
-                            <button
-                                onClick={onManualSearchClick}
-                                className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                                title="Type to search"
-                            >
-                                <Keyboard className="w-4 h-4" />
-                                <span className="hidden lg:inline">Type</span>
-                            </button>
-                        )}
+                <div className="hidden md:flex items-center gap-3">
+                    {onManualSearchClick && (
+                        <button
+                            onClick={onManualSearchClick}
+                            className="p-3 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-all duration-300"
+                            title="Type to search"
+                        >
+                            <Keyboard className="w-5 h-5" />
+                        </button>
+                    )}
 
-                        {onSavedVersesClick && (
-                            <button
-                                onClick={onSavedVersesClick}
-                                className="flex items-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors relative"
-                            >
-                                <Bookmark className="w-4 h-4" />
-                                <span className="hidden lg:inline">My Verses</span>
-                                {savedCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#D4AF37] text-[#0F1629] text-xs font-bold rounded-full flex items-center justify-center">
-                                        {savedCount > 99 ? '99+' : savedCount}
-                                    </span>
-                                )}
-                            </button>
-                        )}
-                    </div>
+                    {onSavedVersesClick && (
+                        <button
+                            onClick={onSavedVersesClick}
+                            className="relative p-3 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-full transition-all duration-300 group"
+                            title="Saved Verses"
+                        >
+                            <Bookmark className="w-5 h-5 group-hover:fill-current transition-colors" />
+                            {savedCount > 0 && (
+                                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-accent text-accent-foreground text-[10px] font-bold rounded-full flex items-center justify-center shadow-sm ring-2 ring-background">
+                                    {savedCount > 99 ? '99+' : savedCount}
+                                </span>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Menu Button */}
                 <button
-                    className="md:hidden p-2 text-white/70 hover:text-white"
+                    className="md:hidden p-2 text-muted-foreground hover:text-foreground transition-colors bg-secondary/50 rounded-xl"
                     onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 >
                     {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -97,67 +103,87 @@ const Navigation: React.FC<NavigationProps> = ({
 
             {/* Mobile Menu */}
             {mobileMenuOpen && (
-                <div className="md:hidden absolute top-full left-0 right-0 bg-[#0F1629] border-b border-white/10 p-4 flex flex-col gap-4 animate-in slide-in-from-top-2">
-                    <Link
-                        to="/"
-                        className={`text-base font-medium p-2 rounded-lg ${isActive('/') ? 'bg-white/10 text-[#D4AF37]' : 'text-white/70 hover:bg-white/5'}`}
-                        onClick={() => setMobileMenuOpen(false)}
-                    >
-                        Search
-                    </Link>
-                    <Link
-                        to="/read"
-                        className={`text-base font-medium p-2 rounded-lg ${isActive('/read') ? 'bg-white/10 text-[#D4AF37]' : 'text-white/70 hover:bg-white/5'}`}
-                        onClick={() => setMobileMenuOpen(false)}
-                    >
-                        Read
-                    </Link>
-                    <Link
-                        to="/about"
-                        className={`text-base font-medium p-2 rounded-lg ${isActive('/about') ? 'bg-white/10 text-[#D4AF37]' : 'text-white/70 hover:bg-white/5'}`}
-                        onClick={() => setMobileMenuOpen(false)}
-                    >
-                        About
-                    </Link>
+                <div className="md:hidden absolute top-20 right-4 w-64 bg-card/95 backdrop-blur-xl border border-white/20 rounded-3xl p-2 flex flex-col gap-1 shadow-2xl animate-in fade-in zoom-in-95 origin-top-right">
+                    <MobileNavLink to="/" label="Search" active={isActive('/')} onClick={() => setMobileMenuOpen(false)} icon={<Search className="w-4 h-4" />} />
+                    <MobileNavLink to="/read" label="Read" active={isActive('/read')} onClick={() => setMobileMenuOpen(false)} icon={<BookOpen className="w-4 h-4" />} />
+                    <MobileNavLink to="/about" label="About" active={isActive('/about')} onClick={() => setMobileMenuOpen(false)} />
 
-                    <div className="h-px bg-white/10 my-2" />
+                    <div className="h-px bg-border/50 my-1 mx-2" />
 
-                    <div className="flex gap-2">
-                        {onManualSearchClick && (
-                            <button
-                                onClick={() => {
-                                    onManualSearchClick();
-                                    setMobileMenuOpen(false);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors"
-                            >
+                    {onManualSearchClick && (
+                        <button
+                            onClick={() => {
+                                onManualSearchClick();
+                                setMobileMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 p-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-2xl transition-colors"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center">
                                 <Keyboard className="w-4 h-4" />
-                                <span>Type</span>
-                            </button>
-                        )}
+                            </div>
+                            Type to Search
+                        </button>
+                    )}
 
-                        {onSavedVersesClick && (
-                            <button
-                                onClick={() => {
-                                    onSavedVersesClick();
-                                    setMobileMenuOpen(false);
-                                }}
-                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-lg transition-colors relative"
-                            >
+                    {onSavedVersesClick && (
+                        <button
+                            onClick={() => {
+                                onSavedVersesClick();
+                                setMobileMenuOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 p-3 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary rounded-2xl transition-colors"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center relative">
                                 <Bookmark className="w-4 h-4" />
-                                <span>My Verses</span>
                                 {savedCount > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-[#D4AF37] text-[#0F1629] text-xs font-bold rounded-full flex items-center justify-center">
-                                        {savedCount}
-                                    </span>
+                                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full border border-background" />
                                 )}
-                            </button>
-                        )}
-                    </div>
+                            </div>
+                            My Verses ({savedCount})
+                        </button>
+                    )}
                 </div>
             )}
         </header>
     );
 };
+
+const NavLink = ({ to, label, active, icon }: { to: string; label: string; active: boolean; icon?: React.ReactNode }) => (
+    <Link
+        to={to}
+        className={`
+      relative px-5 py-2 rounded-full text-sm font-medium transition-all duration-300 flex items-center gap-2
+      ${active
+                ? 'text-accent-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+            }
+    `}
+    >
+        {active && (
+            <span className="absolute inset-0 bg-accent rounded-full -z-10 animate-in fade-in zoom-in-95 duration-300" />
+        )}
+        {icon}
+        {label}
+    </Link>
+);
+
+const MobileNavLink = ({ to, label, active, onClick, icon }: { to: string; label: string; active: boolean; onClick: () => void; icon?: React.ReactNode }) => (
+    <Link
+        to={to}
+        className={`
+      flex items-center gap-3 p-3 text-sm font-medium rounded-2xl transition-all
+      ${active
+                ? 'bg-accent/10 text-accent'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+            }
+    `}
+        onClick={onClick}
+    >
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${active ? 'bg-accent text-accent-foreground' : 'bg-secondary'}`}>
+            {icon || <div className="w-2 h-2 rounded-full bg-current" />}
+        </div>
+        {label}
+    </Link>
+);
 
 export default Navigation;

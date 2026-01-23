@@ -4,17 +4,17 @@ import { Heart, Shield, Zap, WifiOff, Globe, BookOpen } from 'lucide-react';
 
 const AboutPage: React.FC = () => {
     return (
-        <div className="min-h-screen bible-gradient text-white">
+        <div className="min-h-screen bg-background text-foreground transition-colors duration-500">
             <Navigation />
 
             <div className="pt-24 px-4 max-w-6xl mx-auto pb-16">
                 {/* Hero Section */}
                 <div className="text-center mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <span className="text-[#D4AF37] text-sm uppercase tracking-widest font-bold mb-4 block">Our Mission</span>
+                    <span className="text-accent text-sm uppercase tracking-widest font-bold mb-4 block">Our Mission</span>
                     <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight" style={{ fontFamily: "'Crimson Text', serif" }}>
-                        Scripture at the<br />Speed of <span className="text-[#D4AF37]">Voice</span>
+                        Scripture at the<br />Speed of <span className="text-accent">Voice</span>
                     </h1>
-                    <p className="text-xl text-white/60 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
                         VoiceBible bridges the gap between spoken intent and written scripture, offering an immersive, offline-first experience for believers everywhere.
                     </p>
                 </div>
@@ -54,14 +54,14 @@ const AboutPage: React.FC = () => {
                 </div>
 
                 {/* Footer/Credits */}
-                <div className="text-center border-t border-white/10 pt-16">
-                    <p className="text-white/40 mb-4">
+                <div className="text-center border-t border-border pt-16">
+                    <p className="text-muted-foreground mb-4">
                         VoiceBible v1.0 • King James Version
                     </p>
                     <div className="flex justify-center gap-6">
-                        <a href="#" className="text-white/40 hover:text-[#D4AF37] transition-colors">Privacy Policy</a>
-                        <a href="#" className="text-white/40 hover:text-[#D4AF37] transition-colors">Terms of Service</a>
-                        <a href="#" className="text-white/40 hover:text-[#D4AF37] transition-colors">Contact</a>
+                        <a href="#" className="text-muted-foreground hover:text-accent transition-colors">Privacy Policy</a>
+                        <a href="#" className="text-muted-foreground hover:text-accent transition-colors">Terms of Service</a>
+                        <a href="#" className="text-muted-foreground hover:text-accent transition-colors">Contact</a>
                     </div>
                 </div>
             </div>
@@ -71,12 +71,12 @@ const AboutPage: React.FC = () => {
 
 // Helper Component for Features
 const FeatureCard: React.FC<{ icon: React.ReactNode; title: string; description: string }> = ({ icon, title, description }) => (
-    <div className="p-8 bg-white/5 rounded-2xl border border-white/10 hover:border-[#D4AF37]/50 hover:bg-white/10 transition-all duration-300 group">
-        <div className="w-14 h-14 bg-[#D4AF37]/10 rounded-2xl flex items-center justify-center mb-6 text-[#D4AF37] group-hover:scale-110 transition-transform">
+    <div className="p-8 bg-card rounded-2xl border border-border hover:border-accent/50 hover:bg-secondary/50 transition-all duration-300 group shadow-sm hover:shadow-md">
+        <div className="w-14 h-14 bg-accent/10 rounded-2xl flex items-center justify-center mb-6 text-accent group-hover:scale-110 transition-transform">
             {icon}
         </div>
-        <h3 className="text-xl font-bold mb-3 font-serif tracking-wide">{title}</h3>
-        <p className="text-white/60 leading-relaxed group-hover:text-white/80 transition-colors">
+        <h3 className="text-xl font-bold mb-3 font-serif tracking-wide text-foreground">{title}</h3>
+        <p className="text-muted-foreground leading-relaxed group-hover:text-foreground transition-colors">
             {description}
         </p>
     </div>

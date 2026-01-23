@@ -15,8 +15,8 @@ const EXAMPLE_PHRASES = [
 
 const ExamplePhrases: React.FC<ExamplePhrasesProps> = ({ onPhraseClick }) => {
   return (
-    <div className="w-full max-w-2xl mx-auto mt-12">
-      <h3 className="text-center text-white/60 text-sm uppercase tracking-wider mb-4">
+    <div className="w-full max-w-2xl mx-auto mt-12 fade-in">
+      <h3 className="text-center text-muted-foreground text-sm uppercase tracking-wider mb-6 font-medium">
         Try saying
       </h3>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -24,12 +24,12 @@ const ExamplePhrases: React.FC<ExamplePhrasesProps> = ({ onPhraseClick }) => {
           <button
             key={item.phrase}
             onClick={() => onPhraseClick(item.phrase)}
-            className="group p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#D4AF37]/30 rounded-xl transition-all duration-300 text-left"
+            className="group p-4 bg-card hover:bg-secondary/50 border border-border hover:border-accent/40 rounded-xl transition-all duration-300 text-left shadow-sm hover:shadow-md"
           >
-            <p className="text-white font-medium group-hover:text-[#D4AF37] transition-colors">
+            <p className="text-foreground font-semibold group-hover:text-accent transition-colors">
               {item.phrase}
             </p>
-            <p className="text-white/50 text-sm mt-1 truncate">
+            <p className="text-muted-foreground text-sm mt-1 truncate group-hover:text-foreground/80 transition-colors">
               {item.description}
             </p>
           </button>

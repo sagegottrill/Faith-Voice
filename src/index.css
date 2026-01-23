@@ -1,5 +1,5 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Crimson+Text:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -7,42 +7,81 @@
 
 @layer base {
   :root {
-    --background: 230 25% 8%;
-    --foreground: 210 40% 98%;
+    /* LUSH CREAM (Light Mode) */
+    /* Background: Warm Cream */
+    --background: 40 33% 97%;
+    /* Foreground: Deep Forest Charcoal */
+    --foreground: 155 30% 15%;
 
-    --card: 230 25% 12%;
-    --card-foreground: 210 40% 98%;
+    /* Card: White/Off-white for depth */
+    --card: 0 0% 100%;
+    --card-foreground: 155 30% 15%;
 
-    --popover: 230 25% 12%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 155 30% 15%;
 
-    --primary: 43 74% 52%;
-    --primary-foreground: 230 25% 8%;
+    /* Primary: Lush Green */
+    --primary: 155 45% 35%;
+    --primary-foreground: 40 33% 98%;
 
-    --secondary: 250 30% 25%;
-    --secondary-foreground: 210 40% 98%;
+    /* Secondary: Soft Sage */
+    --secondary: 150 20% 92%;
+    --secondary-foreground: 155 40% 20%;
 
-    --muted: 230 20% 18%;
-    --muted-foreground: 215 20% 65%;
+    /* Muted: Natural Grey-Green */
+    --muted: 150 10% 94%;
+    --muted-foreground: 155 10% 45%;
 
-    --accent: 43 74% 52%;
-    --accent-foreground: 230 25% 8%;
+    /* Accent: Gold/Earthy Orange */
+    --accent: 35 90% 45%;
+    --accent-foreground: 40 33% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 230 20% 20%;
-    --input: 230 20% 20%;
-    --ring: 43 74% 52%;
+    --border: 150 15% 90%;
+    --input: 150 15% 90%;
+    --ring: 155 45% 35%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
+  }
 
-    --gold: #D4AF37;
-    --gold-light: #E8D48A;
-    --navy-dark: #0F1629;
-    --navy-light: #1A2744;
-    --purple-dark: #2D1B4E;
-    --verse-bg: #F8F9FA;
+  .dark {
+    /* DEEP FOREST (Dark Mode) */
+    /* Background: Deepest Green/Slate */
+    --background: 165 40% 8%;
+    /* Foreground: Warm Cream */
+    --foreground: 40 20% 94%;
+
+    /* Card: Dark Green */
+    --card: 165 35% 12%;
+    --card-foreground: 40 20% 94%;
+
+    --popover: 165 35% 12%;
+    --popover-foreground: 40 20% 94%;
+
+    /* Primary: Vibrant Fern */
+    --primary: 150 50% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Dark Moss */
+    --secondary: 165 30% 18%;
+    --secondary-foreground: 40 20% 94%;
+
+    /* Muted: Slate Green */
+    --muted: 165 20% 25%;
+    --muted-foreground: 150 10% 70%;
+
+    /* Accent: Gold */
+    --accent: 43 80% 60%;
+    --accent-foreground: 165 40% 8%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 165 20% 20%;
+    --input: 165 20% 20%;
+    --ring: 150 50% 45%;
   }
 }
 
@@ -52,102 +91,60 @@
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-family: 'Inter', sans-serif;
+    @apply bg-background text-foreground antialiased transition-colors duration-500 overflow-x-hidden;
+    font-family: 'Outfit', 'Inter', sans-serif;
+    background-image: var(--bg-image);
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply tracking-tight font-serif;
     font-family: 'Crimson Text', serif;
   }
 }
 
-/* Custom gradient background */
-.bible-gradient {
-  background: linear-gradient(135deg, #0F1629 0%, #1A2744 40%, #2D1B4E 100%);
-}
-
-/* Microphone button pulse animation */
-@keyframes pulse-ring {
-  0% {
-    transform: scale(1);
-    opacity: 0.8;
+/* Premium Card Utilities */
+@layer components {
+  .lush-card {
+    @apply bg-card/80 backdrop-blur-md border border-white/20 shadow-sm hover:shadow-md transition-all duration-300 rounded-2xl;
   }
-  100% {
-    transform: scale(1.5);
-    opacity: 0;
+
+  .lush-glass {
+    @apply bg-white/10 backdrop-blur-lg border border-white/10 shadow-lg;
+  }
+
+  .text-balance {
+    text-wrap: balance;
   }
 }
 
-.mic-pulse {
-  animation: pulse-ring 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
 }
 
-/* Listening waveform animation */
-@keyframes wave {
-  0%, 100% {
-    transform: scaleY(0.5);
-  }
-  50% {
-    transform: scaleY(1);
-  }
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.wave-bar {
-  animation: wave 0.8s ease-in-out infinite;
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50 transition-colors;
 }
 
-.wave-bar:nth-child(1) { animation-delay: 0s; }
-.wave-bar:nth-child(2) { animation-delay: 0.1s; }
-.wave-bar:nth-child(3) { animation-delay: 0.2s; }
-.wave-bar:nth-child(4) { animation-delay: 0.3s; }
-.wave-bar:nth-child(5) { animation-delay: 0.4s; }
-
-/* Verse highlight animation */
-@keyframes highlight-glow {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4);
-  }
-  50% {
-    box-shadow: 0 0 20px 4px rgba(212, 175, 55, 0.3);
-  }
-}
-
-.verse-highlight {
-  animation: highlight-glow 2s ease-in-out 3;
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.25) 50%, rgba(212, 175, 55, 0.15) 100%);
-  border-left: 3px solid #D4AF37;
-}
-
-/* Smooth scroll behavior */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Custom scrollbar for verse display */
-.verse-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-
-.verse-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.verse-scroll::-webkit-scrollbar-thumb {
-  background: rgba(212, 175, 55, 0.3);
-  border-radius: 3px;
-}
-
-.verse-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(212, 175, 55, 0.5);
-}
-
-/* Fade in animation */
-@keyframes fadeIn {
+/* Animations */
+@keyframes fade-in {
   from {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -155,11 +152,20 @@ html {
 }
 
 .fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+  animation: fade-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Verse text styling */
-.verse-text {
-  font-family: 'Crimson Text', serif;
-  line-height: 1.8;
+/* Verse Highlight */
+.verse-highlight {
+  @apply bg-accent/10 border-l-4 border-accent;
+  transition: all 0.3s ease;
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-background/80 backdrop-blur-lg border border-border/50;
+}
+
+.glass-card {
+  @apply bg-card/50 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md transition-all duration-300;
 }

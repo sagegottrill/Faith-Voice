@@ -86,10 +86,10 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 border-4 border-[#D4AF37] border-t-transparent rounded-full animate-spin" />
-          <p className="text-white text-xl font-light tracking-wide">Finding Passage...</p>
+          <div className="w-16 h-16 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+          <p className="text-foreground text-xl font-light tracking-wide">Finding Passage...</p>
         </div>
       </div>
     );
@@ -98,13 +98,13 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
   if (error) {
     return (
       <div className="w-full max-w-2xl mx-auto mt-8 fade-in relative z-10">
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-8 backdrop-blur-md">
+        <div className="bg-destructive/10 border border-destructive/20 rounded-2xl p-8 backdrop-blur-md">
           <div className="flex flex-col items-center gap-4 text-center">
-            <X className="w-12 h-12 text-red-400" />
-            <p className="text-red-200 text-lg font-medium">{error}</p>
+            <X className="w-12 h-12 text-destructive" />
+            <p className="text-destructive text-lg font-medium">{error}</p>
             <button
               onClick={onClose}
-              className="mt-2 px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-100 rounded-lg transition-colors border border-red-500/20"
+              className="mt-2 px-6 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive rounded-lg transition-colors border border-destructive/20"
             >
               Close
             </button>
@@ -118,54 +118,62 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
   return (
     <div className={`
-      transition-all duration-500 ease-in-out
+      transition-all duration-700 ease-[cubic-bezier(0.25,0.1,0.25,1)]
       ${isPresentationMode
         ? 'fixed inset-0 z-[100] bg-black text-white'
-        : 'w-full max-w-4xl mx-auto mt-8 fade-in relative z-10'
+        : 'w-full max-w-5xl mx-auto mt-8 fade-in relative z-10'
       }
     `}>
 
-      {/* Controls Header - Visible on Hover or when not in full presentation flow */}
-      <div className={`
-        flex items-center justify-between p-4 z-50 transition-opacity duration-300
-        ${isPresentationMode ? 'absolute top-0 left-0 right-0 opacity-0 hover:opacity-100 bg-gradient-to-b from-black/80 to-transparent' : ''}
-      `}>
-        <div className="flex items-center gap-4">
-          <div className={`p-2 rounded-lg ${isPresentationMode ? 'bg-white/10' : 'bg-white/5'}`}>
-            <BookOpen className={`w-6 h-6 ${isPresentationMode ? 'text-white' : 'text-[#D4AF37]'}`} />
+      {/* Controls Header */}
+      {!isPresentationMode && (
+        <div className="flex items-center justify-between mb-6 px-4">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onClose}
+              className="p-3 rounded-full bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors group"
+            >
+              <X className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            </button>
+            <div>
+              <h2 className="text-xl font-serif font-bold text-foreground">{reference}</h2>
+              <p className="text-xs text-muted-foreground tracking-widest uppercase font-medium">{translation}</p>
+            </div>
           </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={togglePresentation}
+              className="p-3 bg-secondary/50 hover:bg-secondary rounded-full text-muted-foreground hover:text-accent transition-all"
+              title="Enter Presentation Mode"
+            >
+              <Monitor className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Presentation Mode Controls (Overlay) */}
+      {isPresentationMode && (
+        <div className="absolute top-0 left-0 right-0 p-6 flex justify-between items-start z-50 opacity-0 hover:opacity-100 transition-opacity duration-300 bg-gradient-to-b from-black/80 to-transparent">
           <div>
-            <h2 className={`font-bold ${isPresentationMode ? 'text-2xl' : 'text-xl md:text-2xl text-white'}`} style={{ fontFamily: "'Crimson Text', serif" }}>
-              {reference}
-            </h2>
-            <span className="text-xs text-white/50 uppercase tracking-widest">{translation}</span>
+            <h2 className="text-2xl font-serif font-bold text-white">{reference}</h2>
+            <p className="text-xs text-white/50 tracking-widest uppercase">{translation}</p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={togglePresentation} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+              <Minimize2 className="w-6 h-6" />
+            </button>
+            <button onClick={onClose} className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors">
+              <X className="w-6 h-6" />
+            </button>
           </div>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* Saved/Bookmark Button (only relevant to specific verse, maybe hide in group view or show for current slide) */}
-
-          <button
-            onClick={togglePresentation}
-            className="p-2.5 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
-            title={isPresentationMode ? "Exit Presentation" : "Enter Presentation Mode"}
-          >
-            {isPresentationMode ? <Minimize2 className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
-          </button>
-
-          <button
-            onClick={onClose}
-            className="p-2.5 text-white/70 hover:text-white bg-white/5 hover:bg-white/10 rounded-xl transition-all"
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Main Content Area */}
       <div className={`
-        ${isPresentationMode ? 'h-screen flex items-center justify-center' : ''}
+        ${isPresentationMode ? 'h-screen flex items-center justify-center' : 'lush-glass rounded-3xl border border-white/20 shadow-2xl overflow-hidden'}
       `}>
         {/* Embla Carousel Viewport */}
         <div className="overflow-hidden w-full cursor-grab active:cursor-grabbing" ref={emblaRef}>
@@ -176,54 +184,56 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
                 <div
                   key={`${verse.chapter}-${verse.verse}`}
                   className={`
-                    flex-[0_0_100%] min-w-0 pl-4 relative flex flex-col items-center justify-center p-8
-                    ${!isPresentationMode ? 'py-12' : ''}
+                    flex-[0_0_100%] min-w-0 pl-4 relative flex flex-col items-center justify-center p-8 md:p-12
+                    ${!isPresentationMode ? 'py-16' : ''}
                   `}
                 >
                   <div className={`
-                    max-w-5xl mx-auto text-center transition-all duration-500
+                    max-w-4xl mx-auto text-center transition-all duration-500
                     ${isPresentationMode ? 'scale-110' : ''}
                   `}>
+
                     {/* Verse Number Bubble */}
-                    <div className={`
-                      inline-flex items-center justify-center mb-6 
-                      ${isPresentationMode
-                        ? 'w-16 h-16 text-2xl bg-[#D4AF37] text-black font-bold rounded-full shadow-lg shadow-[#D4AF37]/20'
-                        : 'w-10 h-10 text-sm bg-white/10 text-[#D4AF37] font-bold rounded-full border border-white/10'
-                      }
-                    `}>
-                      {verse.verse}
-                    </div>
+                    {!isPresentationMode && (
+                      <div className="mb-8 flex justify-center">
+                        <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-accent/10 text-accent font-serif font-bold text-xl border border-accent/20">
+                          {verse.verse}
+                        </span>
+                      </div>
+                    )}
 
                     {/* Verse Text */}
                     <p className={`
-                      leading-relaxed font-medium
+                      leading-relaxed
                       ${isPresentationMode
-                        ? 'text-4xl md:text-6xl text-white drop-shadow-xl'
-                        : 'text-2xl md:text-3xl text-white/90'
+                        ? 'text-4xl md:text-6xl text-white drop-shadow-2xl font-serif'
+                        : 'text-2xl md:text-4xl text-foreground font-serif'
                       }
-                    `} style={{ fontFamily: isPresentationMode ? "'Crimson Text', serif" : "'Inter', sans-serif" }}>
-                      "{verse.text}"
+                    `} style={{ lineHeight: 1.6 }}>
+                      {isPresentationMode && <span className="text-[#D4AF37] align-top text-2xl mr-2 font-sans opacity-80">{verse.verse}</span>}
+                      {verse.text}
                     </p>
 
                     {/* Action Bar (Standard Mode Only) */}
                     {!isPresentationMode && onToggleSave && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleSave(verse.book, verse.chapter, verse.verse, verse.text);
-                        }}
-                        className={`
-                            mt-8 inline-flex items-center gap-2 px-6 py-2.5 rounded-full transition-all border
-                            ${isSaved
-                            ? 'bg-[#D4AF37] text-black border-[#D4AF37]'
-                            : 'bg-transparent text-white/50 border-white/10 hover:border-[#D4AF37] hover:text-[#D4AF37]'
-                          }
-                          `}
-                      >
-                        <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-                        <span className="text-sm font-medium">{isSaved ? 'Saved' : 'Save Verse'}</span>
-                      </button>
+                      <div className="mt-10 flex justify-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleSave(verse.book, verse.chapter, verse.verse, verse.text);
+                          }}
+                          className={`
+                                inline-flex items-center gap-2 px-6 py-3 rounded-full transition-all font-medium border text-sm
+                                ${isSaved
+                              ? 'bg-accent text-accent-foreground border-accent shadow-lg shadow-accent/20'
+                              : 'bg-transparent text-muted-foreground border-border hover:border-accent hover:text-accent'
+                            }
+                              `}
+                        >
+                          <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                          {isSaved ? 'Saved to Library' : 'Save Text'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -235,17 +245,17 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
       {/* Navigation Floating Buttons (Standard Mode) */}
       {!isPresentationMode && (
-        <div className="flex justify-center gap-4 mt-4">
+        <div className="flex justify-center gap-4 mt-6">
           <button
             onClick={() => emblaApi?.scrollPrev()}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all disabled:opacity-30"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border hover:border-accent hover:text-accent transition-all shadow-sm disabled:opacity-30 disabled:hover:border-border disabled:hover:text-muted-foreground"
             disabled={!emblaApi?.canScrollPrev()}
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button
             onClick={() => emblaApi?.scrollNext()}
-            className="p-3 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white transition-all disabled:opacity-30"
+            className="w-12 h-12 flex items-center justify-center rounded-full bg-card border border-border hover:border-accent hover:text-accent transition-all shadow-sm disabled:opacity-30 disabled:hover:border-border disabled:hover:text-muted-foreground"
             disabled={!emblaApi?.canScrollNext()}
           >
             <ChevronRight className="w-6 h-6" />
@@ -255,11 +265,11 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
 
       {/* Presentation Controls Hint */}
       {isPresentationMode && (
-        <div className="absolute bottom-8 left-0 right-0 text-center opacity-0 hover:opacity-100 transition-opacity duration-500">
-          <div className="inline-flex gap-4 bg-black/50 backdrop-blur-md px-6 py-2 rounded-full text-white/50 text-sm">
-            <span>← Previous</span>
-            <span>ESC to Exit</span>
-            <span>Next →</span>
+        <div className="absolute bottom-10 left-0 right-0 text-center opacity-0 hover:opacity-100 transition-opacity duration-500">
+          <div className="inline-flex gap-8 bg-white/10 backdrop-blur-md px-8 py-3 rounded-full text-white/70 text-sm">
+            <span className="flex items-center gap-2"><ArrowLeft className="w-4 h-4" /> Previous</span>
+            <span className="font-mono opacity-50">ESC</span>
+            <span className="flex items-center gap-2">Next <ChevronRight className="w-4 h-4" /></span>
           </div>
         </div>
       )}
