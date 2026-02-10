@@ -145,13 +145,24 @@ const VerseDisplay: React.FC<VerseDisplayProps> = ({
           <div className="flex gap-2">
             <button
               // @ts-expect-error - Electron bridge
-              onClick={() => window.electronAPI?.projectVerse({
-                text: verses[selectedIndex]?.text,
-                reference: reference,
-                translation: translation,
-                verseNumber: verses[selectedIndex]?.verse
-              })}
-              className="p-3 bg-secondary/50 hover:bg-secondary rounded-full text-muted-foreground hover:text-accent transition-all"
+              onClick={() => {
+                if (window.electronAPI?.projectVerse) {
+                  window.electronAPI.projectVerse({
+                    text: verses[selectedIndex]?.text,
+                    reference: reference,
+                    translation: translation,
+                    verseNumber: verses[selectedIndex]?.verse
+                  });
+                } else {
+                  console.warn("Projection not available in web mode");
+                }
+              }}
+              className={`p-3 rounded-full transition-all ${
+                // @ts-expect-error - Electron bridge
+                window.electronAPI?.projectVerse
+                  ? 'bg-secondary/50 hover:bg-secondary text-muted-foreground hover:text-accent'
+                  : 'bg-secondary/20 text-muted-foreground/50 cursor-not-allowed'
+                }`}
               title="Project to Second Screen"
             >
               <Maximize2 className="w-5 h-5" />

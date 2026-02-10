@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { BIBLE_BOOKS, Verse } from '@/utils/bibleData';
-import { fetchLocalChapter } from '@/utils/localBible';
+import { bibleService, AVAILABLE_TRANSLATIONS } from '@/utils/bibleService';
 import VerseDisplay from '@/components/VerseDisplay';
-import { BookOpen, ChevronRight, ArrowLeft } from 'lucide-react';
+import { BookOpen, ChevronRight, ArrowLeft, Globe } from 'lucide-react';
 
 const ReadPage: React.FC = () => {
     const [view, setView] = useState<'books' | 'chapters' | 'verses'>('books');
@@ -11,21 +11,57 @@ const ReadPage: React.FC = () => {
     const [selectedChapter, setSelectedChapter] = useState<number>(1);
     const [chapterVerses, setChapterVerses] = useState<Verse[]>([]);
     const [error, setError] = useState<string | null>(null);
+    const [translationId, setTranslationId] = useState<string>('kjv');
+    const [isLoading, setIsLoading] = useState<boolean>(false);
+
+    // Load translation and refresh content if needed
+    useEffect(() => {
+        const loadTranslation = async () => {
+            try {
+                setIsLoading(true);
+                await bibleService.setTranslation(translationId);
+
+                // If currently viewing a chapter, re-fetch verses with new translation
+                if (view === 'verses' && selectedBook) {
+                    const verses = await bibleService.getChapter(selectedBook.name, selectedChapter);
+                    setChapterVerses(verses);
+                }
+            } catch (err) {
+                console.error("Failed to load translation", err);
+                setError("Failed to load Bible translation.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadTranslation();
+    }, [translationId]);
 
     const handleBookClick = (book: typeof BIBLE_BOOKS[0]) => {
         setSelectedBook(book);
         setView('chapters');
     };
 
-    const handleChapterClick = (chapter: number) => {
+    const handleChapterClick = async (chapter: number) => {
         if (selectedBook) {
             setSelectedChapter(chapter);
-            const result = fetchLocalChapter(selectedBook.name, chapter);
-            if (result.error) {
-                setError(result.error);
-            } else {
-                setChapterVerses(result.verses);
-                setView('verses');
+            setIsLoading(true);
+            try {
+                // Ensure translation is loaded (idempotent)
+                await bibleService.setTranslation(translationId);
+                const verses = await bibleService.getChapter(selectedBook.name, chapter);
+
+                if (verses.length === 0) {
+                    setError("No verses found for this chapter.");
+                } else {
+                    setChapterVerses(verses);
+                    setView('verses');
+                    setError(null);
+                }
+            } catch (err) {
+                setError("Failed to load verses.");
+                console.error(err);
+            } finally {
+                setIsLoading(false);
             }
         }
     };
@@ -64,36 +100,60 @@ const ReadPage: React.FC = () => {
             <div className="pt-24 px-4 max-w-6xl mx-auto pb-16">
 
                 {/* Header / Breadcrumbs */}
-                <div className="flex items-center gap-2 mb-8 text-sm md:text-base">
-                    <button
-                        onClick={handleBackToBooks}
-                        className={`transition-colors ${view === 'books' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                        Books
-                    </button>
+                <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+                    <div className="flex items-center gap-2 text-sm md:text-base">
+                        <button
+                            onClick={handleBackToBooks}
+                            className={`transition-colors ${view === 'books' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
+                        >
+                            Books
+                        </button>
 
-                    {selectedBook && (
-                        <>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            <button
-                                onClick={handleBackToChapters}
-                                className={`transition-colors ${view === 'chapters' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
-                            >
-                                {selectedBook.name}
-                            </button>
-                        </>
-                    )}
+                        {selectedBook && (
+                            <>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                <button
+                                    onClick={handleBackToChapters}
+                                    className={`transition-colors ${view === 'chapters' ? 'font-bold text-accent' : 'text-muted-foreground hover:text-foreground'}`}
+                                >
+                                    {selectedBook.name}
+                                </button>
+                            </>
+                        )}
 
-                    {view === 'verses' && (
-                        <>
-                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-bold text-accent">Chapter {selectedChapter}</span>
-                        </>
-                    )}
+                        {view === 'verses' && (
+                            <>
+                                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                                <span className="font-bold text-accent">Chapter {selectedChapter}</span>
+                            </>
+                        )}
+                    </div>
+
+                    {/* Translation Switcher */}
+                    <div className="flex items-center gap-2 bg-secondary/30 rounded-full p-1 px-3">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                        <select
+                            value={translationId}
+                            onChange={(e) => setTranslationId(e.target.value)}
+                            className="bg-transparent border-none text-xs font-medium text-foreground focus:ring-0 cursor-pointer"
+                        >
+                            {AVAILABLE_TRANSLATIONS.map(t => (
+                                <option key={t.id} value={t.id} className="bg-background text-foreground">
+                                    {t.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
+                {isLoading && view !== 'verses' && (
+                    <div className="flex justify-center my-12">
+                        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                )}
+
                 {/* Views */}
-                {view === 'books' && (
+                {view === 'books' && !isLoading && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="text-center mb-10">
                             <h1 className="text-4xl font-serif font-bold text-foreground mb-4">
@@ -128,7 +188,7 @@ const ReadPage: React.FC = () => {
                     </div>
                 )}
 
-                {view === 'chapters' && selectedBook && (
+                {view === 'chapters' && selectedBook && !isLoading && (
                     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                         <div className="flex flex-col items-center mb-10">
                             <button onClick={handleBackToBooks} className="mb-6 p-2 bg-secondary/50 hover:bg-secondary rounded-full transition-colors text-muted-foreground hover:text-foreground">
@@ -159,8 +219,8 @@ const ReadPage: React.FC = () => {
                         <VerseDisplay
                             verses={chapterVerses}
                             reference={`${selectedBook.name} ${selectedChapter}`}
-                            translation="KJV"
-                            isLoading={false}
+                            translation={AVAILABLE_TRANSLATIONS.find(t => t.id === translationId)?.name || translationId.toUpperCase()}
+                            isLoading={isLoading}
                             error={error}
                             onClose={handleCloseViewer}
                             onNavigate={handleNavigateVerses}

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navigation from './Navigation';
-import { fetchLocalVerses, searchLocalVerses } from '@/utils/localBible';
+import { bibleService } from '@/utils/bibleService';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
 import { useSavedVerses } from '@/hooks/useSavedVerses';
-import { parseVerseReference, formatVerseReference } from '@/utils/bibleParser';
+import { smartParse, parseVerseReference, formatVerseReference } from '@/utils/bibleParser';
 import { VerseReference, Verse } from '@/utils/bibleData';
 import MicrophoneButton from './MicrophoneButton';
 import VoiceTranscript from './VoiceTranscript';
@@ -12,6 +12,7 @@ import ExamplePhrases from './ExamplePhrases';
 import SavedVersesPanel from './SavedVersesPanel';
 import { useSemanticSearch } from '@/hooks/useSemanticSearch';
 import { classifyIntent } from '@/utils/intentClassifier';
+import { voiceFeedback } from '@/utils/voiceFeedback';
 import { Search, Bookmark, Sparkles } from 'lucide-react';
 
 interface VerseResponse {
@@ -54,31 +55,70 @@ const AppLayout: React.FC = () => {
     const [manualInput, setManualInput] = useState('');
     const [showSavedPanel, setShowSavedPanel] = useState(false);
     const [lastIntent, setLastIntent] = useState<string | null>(null);
+    const [presentationMode, setPresentationMode] = useState(false);
+    const [sermonMode, setSermonMode] = useState(() => {
+        const saved = localStorage.getItem('faith-voice-sermon-mode');
+        return saved === 'true';
+    });
 
-    // Fetch verses from local JSON
+    // Toggle sermon mode (always-on listening)
+    const toggleSermonMode = useCallback(() => {
+        setSermonMode(prev => {
+            const newMode = !prev;
+            localStorage.setItem('faith-voice-sermon-mode', String(newMode));
+            voiceFeedback.setEnabled(newMode);
+
+            if (newMode) {
+                voiceFeedback.speak('Sermon mode activated');
+                // Auto-start listening
+                setTimeout(() => {
+                    if (!isListening) startListening();
+                }, 1000);
+            } else {
+                voiceFeedback.speak('Normal mode');
+                if (isListening) stopListening();
+            }
+            return newMode;
+        });
+    }, [isListening, startListening, stopListening]);
+
+    // Toggle presentation mode (triggered by MEDIA intent)
+    const togglePresentationMode = useCallback(() => {
+        setPresentationMode(prev => !prev);
+        console.log('Presentation mode toggled');
+        voiceFeedback.confirmMedia();
+    }, []);
+
+    // Initialize voice feedback on mount
+    useEffect(() => {
+        voiceFeedback.setEnabled(sermonMode);
+    }, [sermonMode]);
+
+    // Fetch verses from BibleService
     const fetchVerses = useCallback(async (ref: VerseReference) => {
         setIsLoading(true);
         setFetchError(null);
         setCurrentRef(ref);
 
         try {
-            const { verses: foundVerses, error } = fetchLocalVerses({
-                book: ref.book,
-                chapter: ref.chapter,
-                verse: ref.verse,
-                contextBefore: 3,
-                contextAfter: 3
-            });
+            // Get the full chapter content
+            const chapterVerses = await bibleService.getChapter(ref.book, ref.chapter);
 
-            if (error) {
-                setFetchError(error);
-                return;
-            }
+            if (chapterVerses && chapterVerses.length > 0) {
+                // Add isTarget flag for highlighting
+                const versesWithHighlight = chapterVerses.map(v => ({
+                    ...v,
+                    isTarget: v.verse === ref.verse
+                }));
 
-            if (foundVerses && foundVerses.length > 0) {
-                setVerses(foundVerses);
+                setVerses(versesWithHighlight);
                 setReference(formatVerseReference(ref));
-                setTranslation('KJV (Offline)');
+
+                // Highlight specific verse if requested
+                // We'll pass this down or handle scrolling later
+                // For now, setting the verses is enough
+                const currentTrans = bibleService.getCurrentTranslation();
+                setTranslation(currentTrans.name);
             } else {
                 setFetchError('No verses found for this reference.');
             }
@@ -90,61 +130,113 @@ const AppLayout: React.FC = () => {
         }
     }, []);
 
-    // Process transcript when speech ends
+    // Auto-submit on silence
+    useEffect(() => {
+        if (!isListening || !transcript.trim()) return;
+
+        const timer = setTimeout(() => {
+            console.log("Auto-submitting due to silence...");
+            stopListening();
+            // The useEffect below will handle the actual processing when isListening becomes false
+        }, 800); // 0.8s silence timeout (Faster response)
+
+        return () => clearTimeout(timer);
+    }, [transcript, isListening, stopListening]);
+
+    // Process transcript when speech ends (Smart NLP Pipeline)
     useEffect(() => {
         if (!isListening && transcript && !isLoading) {
+            console.log("Processing transcript:", transcript);
 
             // 1. Intent Gatekeeper
-            const intent = classifyIntent(transcript);
+            const savedWakeWords = localStorage.getItem('faith-voice-wake-words');
+            const customWakeWords = savedWakeWords ? JSON.parse(savedWakeWords) : [];
+            const intent = classifyIntent(transcript, customWakeWords);
             setLastIntent(intent.type);
 
-            // If it's just a story/conversation, ignore it.
-            if (intent.type === 'NARRATIVE') {
-                console.log('Ignored Narrative:', transcript);
-                // We could set a temporary UI state here to show "Ignored"
-                // For now, we rely on the visual feedback of *not* searching.
+            // Handle Media/Projection Toggle
+            if (intent.type === 'MEDIA') {
+                console.log("Media Intent Detected");
+                togglePresentationMode();
+                setReference("Presentation Mode Toggled");
                 return;
             }
 
-            const ref = parseVerseReference(transcript);
-            if (ref) {
-                fetchVerses(ref);
-            } else if (transcript.trim().length > 0) {
-                const searchResults = searchLocalVerses(transcript.trim());
-                if (searchResults.length > 0) {
-                    setVerses(searchResults);
-                    setReference(`Search: "${transcript}"`);
-                    setTranslation('KJV (Offline)');
-                    setFetchError(null);
-                } else {
-                    setFetchError(`Couldn't find any verses matching "${transcript}".`);
+            // 2. Smart NLP Parse — the brain
+            const smartResult = smartParse(transcript);
 
-                    // Fallback to Semantic Search
-                    if (isSemanticReady) {
-                        setFetchError(null);
-                        setIsLoading(true);
-                        semanticSearch(transcript).then(results => {
-                            if (results.length > 0) {
-                                // Fetch the full verse text for the top result
-                                const topResult = results[0];
-                                const ref = parseVerseReference(topResult.reference);
-                                if (ref) {
-                                    fetchVerses(ref);
-                                    setReference(formatVerseReference(ref));
-                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
-                                }
-                            } else {
-                                setFetchError(`No verses found matching "${transcript}"`);
-                            }
-                            setIsLoading(false);
-                        });
-                    }
-                }
+            // If narrative AND smart parse found nothing, ignore
+            if (intent.type === 'NARRATIVE' && !smartResult) {
+                console.log('Ignored Narrative:', transcript);
+                return;
             }
-        } else if (isListening) {
-            setLastIntent(null);
+
+            if (smartResult) {
+                console.log('Smart Parse Result:', smartResult);
+
+                // Voice feedback
+                const refText = formatVerseReference(smartResult.ref);
+                voiceFeedback.confirmVerse(refText);
+
+                // Auto-switch translation if user specified one (e.g. "KJV version")
+                if (smartResult.translationId) {
+                    console.log('Auto-switching to translation:', smartResult.translationId);
+                    const trans = bibleService.getCurrentTranslation();
+                    bibleService.setTranslation(smartResult.translationId);
+                    voiceFeedback.confirmTranslation(trans.name);
+                }
+
+                fetchVerses(smartResult.ref);
+            } else if (transcript.trim().length > 0) {
+                // Fallback: keyword search
+                setIsLoading(true);
+                voiceFeedback.confirmSearch(transcript.trim());
+
+                bibleService.search(transcript.trim()).then(searchResults => {
+                    if (searchResults.length > 0) {
+                        setVerses(searchResults);
+                        setReference(`Search: "${transcript}"`);
+                        const currentTrans = bibleService.getCurrentTranslation();
+                        setTranslation(currentTrans.name);
+                        setFetchError(null);
+                    } else {
+                        setFetchError(`Couldn't find any verses matching "${transcript}".`);
+
+                        // Fallback to Semantic Search
+                        if (isSemanticReady) {
+                            setFetchError(null);
+                            semanticSearch(transcript).then(results => {
+                                if (results.length > 0) {
+                                    const topResult = results[0];
+                                    const ref = parseVerseReference(topResult.reference);
+                                    if (ref) {
+                                        fetchVerses(ref);
+                                        setReference(formatVerseReference(ref));
+                                        setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                    }
+                                } else {
+                                    setFetchError(`No verses found matching "${transcript}"`);
+                                    voiceFeedback.error('No verses found');
+                                }
+                                setIsLoading(false);
+                            });
+                            return;
+                        }
+                    }
+                    setIsLoading(false);
+                });
+            }
+
+            // Auto-restart in sermon mode
+            if (sermonMode) {
+                setTimeout(() => {
+                    resetTranscript();
+                    startListening();
+                }, 1500); // Brief pause before restarting
+            }
         }
-    }, [isListening, transcript, fetchVerses, isLoading, isSemanticReady, semanticSearch]);
+    }, [isListening, transcript, isLoading, togglePresentationMode, isSemanticReady, fetchVerses, sermonMode, resetTranscript, startListening]);
+
 
     // Handle microphone button click
     const handleMicClick = () => {
@@ -183,40 +275,45 @@ const AppLayout: React.FC = () => {
                 setManualInput('');
                 setShowManualInput(false);
             } else {
-                const searchResults = searchLocalVerses(manualInput.trim());
-                if (searchResults.length > 0) {
-                    setVerses(searchResults);
-                    setReference(`Search: "${manualInput}"`);
-                    setTranslation('KJV (Offline)');
-                    setFetchError(null);
-                    setManualInput('');
-                    setShowManualInput(false);
-                } else {
-                    setFetchError(`Couldn't find any verses matching "${manualInput}".`);
-
-                    // Fallback to Semantic Search
-                    if (isSemanticReady) {
+                // Perform Search on BibleService
+                setIsLoading(true);
+                bibleService.search(manualInput.trim()).then(searchResults => {
+                    if (searchResults.length > 0) {
+                        setVerses(searchResults);
+                        setReference(`Search: "${manualInput}"`);
+                        const currentTrans = bibleService.getCurrentTranslation();
+                        setTranslation(currentTrans.name);
                         setFetchError(null);
-                        setIsLoading(true);
-                        semanticSearch(manualInput).then(results => {
-                            if (results.length > 0) {
-                                // Fetch the full verse text for the top result
-                                const topResult = results[0];
-                                const ref = parseVerseReference(topResult.reference);
-                                if (ref) {
-                                    fetchVerses(ref);
-                                    setReference(formatVerseReference(ref));
-                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                        setManualInput('');
+                        setShowManualInput(false);
+                    } else {
+                        setFetchError(`Couldn't find any verses matching "${manualInput}".`);
+
+                        // Fallback to Semantic Search
+                        if (isSemanticReady) {
+                            setFetchError(null);
+                            // setIsLoading(true);
+                            semanticSearch(manualInput).then(results => {
+                                if (results.length > 0) {
+                                    const topResult = results[0];
+                                    const ref = parseVerseReference(topResult.reference);
+                                    if (ref) {
+                                        fetchVerses(ref);
+                                        setReference(formatVerseReference(ref));
+                                        setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                    }
+                                } else {
+                                    setFetchError(`No verses found matching "${manualInput}"`);
                                 }
-                            } else {
-                                setFetchError(`No verses found matching "${manualInput}"`);
-                            }
-                            setManualInput('');
-                            setShowManualInput(false);
-                            setIsLoading(false);
-                        });
+                                setManualInput('');
+                                setShowManualInput(false);
+                                setIsLoading(false);
+                            });
+                            return;
+                        }
                     }
-                }
+                    setIsLoading(false);
+                });
             }
         }
     };
@@ -287,6 +384,8 @@ const AppLayout: React.FC = () => {
                 onManualSearchClick={() => setShowManualInput(!showManualInput)}
                 onSavedVersesClick={() => setShowSavedPanel(true)}
                 savedCount={savedVerses.length}
+                sermonMode={sermonMode}
+                onSermonModeToggle={toggleSermonMode}
             />
 
             {/* Manual input bar */}

@@ -1,17 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { ThemeToggle } from './ThemeToggle';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Sun, Moon } from 'lucide-react';
+import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Mic, MicOff } from 'lucide-react';
 
 interface NavigationProps {
     onManualSearchClick?: () => void;
     onSavedVersesClick?: () => void;
     savedCount?: number;
+    sermonMode?: boolean;
+    onSermonModeToggle?: () => void;
 }
 
 const Navigation: React.FC<NavigationProps> = ({
     onManualSearchClick,
     onSavedVersesClick,
-    savedCount = 0
+    savedCount = 0,
+    sermonMode = false,
+    onSermonModeToggle
 }) => {
     const location = useLocation();
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -66,6 +71,22 @@ const Navigation: React.FC<NavigationProps> = ({
                 </div>
 
                 <div className="hidden md:flex items-center gap-3">
+                    <ThemeToggle />
+
+                    {/* Sermon Mode Toggle */}
+                    {onSermonModeToggle && (
+                        <button
+                            onClick={onSermonModeToggle}
+                            className={`p-3 rounded-full transition-all duration-300 ${sermonMode
+                                    ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                                }`}
+                            title={sermonMode ? 'Sermon Mode (Always Listening)' : 'Normal Mode (Tap to Talk)'}
+                        >
+                            {sermonMode ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+                        </button>
+                    )}
+
                     {onManualSearchClick && (
                         <button
                             onClick={onManualSearchClick}
@@ -104,6 +125,12 @@ const Navigation: React.FC<NavigationProps> = ({
             {/* Mobile Menu */}
             {mobileMenuOpen && (
                 <div className="md:hidden absolute top-20 right-4 w-64 bg-card/95 backdrop-blur-xl border border-white/20 rounded-3xl p-2 flex flex-col gap-1 shadow-2xl animate-in fade-in zoom-in-95 origin-top-right">
+                    <div className="flex justify-between items-center px-4 py-2">
+                        <span className="text-sm font-medium text-muted-foreground">Appearance</span>
+                        <ThemeToggle />
+                    </div>
+                    <div className="h-px bg-border/50 my-1 mx-2" />
+
                     <MobileNavLink to="/" label="Search" active={isActive('/')} onClick={() => setMobileMenuOpen(false)} icon={<Search className="w-4 h-4" />} />
                     <MobileNavLink to="/read" label="Read" active={isActive('/read')} onClick={() => setMobileMenuOpen(false)} icon={<BookOpen className="w-4 h-4" />} />
                     <MobileNavLink to="/about" label="About" active={isActive('/about')} onClick={() => setMobileMenuOpen(false)} />

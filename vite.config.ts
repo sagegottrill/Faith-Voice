@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
   },
   resolve: {
     alias: {
+      "onnxruntime-web": path.resolve(__dirname, "node_modules/onnxruntime-web/dist/ort-web.es6.min.js"),
       "@": path.resolve(__dirname, "./src"),
     },
   },

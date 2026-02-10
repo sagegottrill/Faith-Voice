@@ -13,14 +13,22 @@ const ProjectorView: React.FC = () => {
 
     useEffect(() => {
         // Listen for verse updates via IPC
+        // Listen for verse updates via IPC (Electron only)
         // @ts-expect-error - Electron bridge
-        const removeListener = window.electronAPI?.onUpdateVerse((_event: unknown, verse: VerseData) => {
-            setCurrentVerse(verse);
-        });
+        if (window.electronAPI?.onUpdateVerse) {
+            // @ts-expect-error - Electron bridge
+            const removeListener = window.electronAPI.onUpdateVerse((_event: unknown, verse: VerseData) => {
+                setCurrentVerse(verse);
+            });
 
-        return () => {
-            if (removeListener) removeListener();
-        };
+            return () => {
+                if (removeListener) removeListener();
+            };
+        } else {
+            console.log("Electron API not found - Projector mode inactive in web browser");
+        }
+
+
     }, []);
 
     if (!currentVerse) {

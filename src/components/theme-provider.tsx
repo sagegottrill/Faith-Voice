@@ -16,12 +16,13 @@ const ThemeContext = createContext<ThemeContextType | null>(null)
 export function ThemeProvider({
   children,
   defaultTheme = "system",
+  storageKey = "theme",
   value: _value,
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== "undefined") {
-      const savedTheme = localStorage.getItem("theme")
+      const savedTheme = localStorage.getItem(storageKey)
       return (savedTheme && (savedTheme === "dark" || savedTheme === "light" || savedTheme === "system")
         ? savedTheme
         : defaultTheme) as Theme
@@ -48,7 +49,7 @@ export function ThemeProvider({
   const value: ThemeContextType = {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem("theme", theme)
+      localStorage.setItem(storageKey, theme)
       setTheme(theme)
     },
   }

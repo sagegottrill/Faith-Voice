@@ -68,19 +68,25 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const intentToListenRef = useRef(false); // Track user intent independent of status
   const autoRestartTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
 
-  // Initialize speech recognition
+  // Initialize speech recognition (ONLY ONCE)
   useEffect(() => {
     if (!isSupported) return;
+
+    // cleanup previous instance if any (though effect should ideally run once)
+    if (recognitionRef.current) {
+      recognitionRef.current.abort();
+    }
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
 
-    // CRITICAL: Enable continuous listening for real-time preaching
-    recognition.continuous = true;  // Changed from false
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = 'en-US';
     recognition.maxAlternatives = 1;
@@ -104,7 +110,10 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       }
 
       if (finalTranscript) {
-        setTranscript(prev => prev + ' ' + finalTranscript);
+        setTranscript(prev => {
+          const newTranscript = prev + ' ' + finalTranscript;
+          return newTranscript.trim();
+        });
         setInterimTranscript('');
       } else {
         setInterimTranscript(interim);
@@ -112,54 +121,49 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      // Don't stop on 'no-speech' - just keep listening
       if (event.error === 'no-speech') {
-        console.log('No speech detected, continuing to listen...');
-        return;
+        return; // Ignore no-speech, keep trying if continuous
       }
 
-      setIsListening(false);
+      console.warn(`Speech recognition error: ${event.error}`);
 
-      switch (event.error) {
-        case 'audio-capture':
-          setError('No microphone found. Please check your device.');
-          break;
-        case 'not-allowed':
-          setError('Microphone access denied. Please allow microphone access.');
-          break;
-        case 'network':
-          // Auto-restart on network errors (for continuous operation)
-          console.log('Network error, attempting to restart...');
-          autoRestartTimeoutRef.current = setTimeout(() => {
-            if (recognitionRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (e) {
-                console.error('Failed to restart:', e);
-              }
-            }
-          }, 1000);
-          break;
-        default:
-          console.error(`Speech recognition error: ${event.error}`);
+      if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+        setIsListening(false);
+        intentToListenRef.current = false;
+        setError(event.error === 'not-allowed'
+          ? 'Microphone access denied.'
+          : 'No microphone found.');
+      } else if (event.error === 'network') {
+        // Keep intent, it will try to restart in onend
+        setError('Network error. Retrying...');
+      } else {
+        // For other errors, we might want to stop to prevent crazy loops
+        // But if it's 'aborted' we just let onend handle it
+        if (event.error !== 'aborted') {
+          setIsListening(false);
+        }
       }
     };
 
     recognition.onend = () => {
-      // Auto-restart if we were supposed to be listening
-      // This ensures continuous operation during long sermons
-      if (isListening) {
-        console.log('Recognition ended, restarting...');
+      // Logic: If user WANTS to listen (intent=true), try to restart.
+      if (intentToListenRef.current) {
+        console.log('Recognition ended unexpectedly. Restarting...');
+
+        // Debounce restart slightly to avoid rapid loops on persistent errors
         autoRestartTimeoutRef.current = setTimeout(() => {
-          if (recognitionRef.current) {
+          if (intentToListenRef.current && recognitionRef.current) {
             try {
               recognitionRef.current.start();
             } catch (e) {
-              console.error('Failed to restart:', e);
+              // If start fails (e.g. not allowed), stop the loop
+              console.error("Failed to restart logic:", e);
+              intentToListenRef.current = false;
               setIsListening(false);
             }
           }
-        }, 100); // Minimal delay for instant restart
+        }, 300);
+
       } else {
         setIsListening(false);
       }
@@ -168,43 +172,42 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     recognitionRef.current = recognition;
 
     return () => {
-      if (autoRestartTimeoutRef.current) {
-        clearTimeout(autoRestartTimeoutRef.current);
-      }
-      if (recognitionRef.current) {
-        recognitionRef.current.abort();
-      }
+      intentToListenRef.current = false;
+      if (autoRestartTimeoutRef.current) clearTimeout(autoRestartTimeoutRef.current);
+      if (recognitionRef.current) recognitionRef.current.abort();
     };
-  }, [isSupported, isListening]);
+  }, [isSupported]); // Dependency is ONLY isSupported, not isListening
 
   const startListening = useCallback(() => {
-    if (!recognitionRef.current || isListening) return;
+    if (!recognitionRef.current) return;
 
+    intentToListenRef.current = true;
     setTranscript('');
     setInterimTranscript('');
     setError(null);
 
     try {
       recognitionRef.current.start();
-    } catch (err) {
-      console.error('Speech recognition error:', err);
+    } catch (err: any) {
+      if (err.name !== 'InvalidStateError') {
+        // InvalidStateError means it's already started, which is fine
+        console.error("Error starting recognition:", err);
+        setError("Failed to start microphone.");
+        intentToListenRef.current = false;
+      }
     }
-  }, [isListening]);
+  }, []);
 
   const stopListening = useCallback(() => {
-    if (!recognitionRef.current || !isListening) return;
-
-    // Clear any pending restarts
-    if (autoRestartTimeoutRef.current) {
-      clearTimeout(autoRestartTimeoutRef.current);
+    intentToListenRef.current = false;
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        console.error("Error stopping recognition:", err);
+      }
     }
-
-    try {
-      recognitionRef.current.stop();
-    } catch (err) {
-      console.error('Error stopping recognition:', err);
-    }
-  }, [isListening]);
+  }, []); // Remove isListening dependency
 
   const resetTranscript = useCallback(() => {
     setTranscript('');

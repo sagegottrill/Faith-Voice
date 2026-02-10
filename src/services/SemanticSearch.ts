@@ -1,8 +1,8 @@
 import { pipeline, env } from '@xenova/transformers';
 
 // Configure to use local models if possible or cache heavily
-// env.allowLocalModels = false; // We want to download from HF for first time
-// env.useBrowserCache = true;
+env.allowLocalModels = false; // Force download from HF to avoid local 404s (HTML response)
+env.useBrowserCache = true;
 
 interface SearchResult {
     text: string;
