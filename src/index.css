@@ -169,3 +169,28 @@
 .glass-card {
   @apply bg-card/50 backdrop-blur-md border border-border/50 shadow-sm hover:shadow-md transition-all duration-300;
 }
+
+/* Verse of the Day Card */
+.votd-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.votd-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
+}
+
+/* Pulse glow for active streaks */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.3); }
+  50% { box-shadow: 0 0 20px 4px rgba(249, 115, 22, 0.15); }
+}
+.streak-active { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* Smooth zoom for Command Palette */
+@keyframes zoom-in-95 {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-in { animation: zoom-in-95 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }

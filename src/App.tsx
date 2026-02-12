@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import ReadPage from "./pages/Read";
 import AboutPage from "./pages/About";
+import Dashboard from "./pages/Dashboard";
 import ProjectorView from "./pages/ProjectorView";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/read" element={<ReadPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projector" element={<ProjectorView />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="*" element={<NotFound />} />

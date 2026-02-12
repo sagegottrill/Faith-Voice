@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Mic, MicOff } from 'lucide-react';
+import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Mic, MicOff, Command, Heart } from 'lucide-react';
 
 interface NavigationProps {
     onManualSearchClick?: () => void;
@@ -67,19 +67,32 @@ const Navigation: React.FC<NavigationProps> = ({
                 <div className="hidden md:flex items-center gap-2 bg-white/5 backdrop-blur-sm p-1.5 rounded-full border border-white/10 shadow-sm">
                     <NavLink to="/" label="Search" active={isActive('/')} icon={<Search className="w-4 h-4" />} />
                     <NavLink to="/read" label="Read" active={isActive('/read')} icon={<BookOpen className="w-4 h-4" />} />
+                    <NavLink to="/dashboard" label="Devotional" active={isActive('/dashboard')} icon={<Heart className="w-4 h-4" />} />
                     <NavLink to="/about" label="About" active={isActive('/about')} />
                 </div>
 
                 <div className="hidden md:flex items-center gap-3">
                     <ThemeToggle />
 
+                    {/* ⌘K Shortcut */}
+                    <button
+                        onClick={() => {
+                            window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+                        }}
+                        className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary/50 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-secondary transition-all duration-200 text-xs"
+                        title="Command Palette (Ctrl+K)"
+                    >
+                        <Command className="w-3 h-3" />
+                        <span className="font-mono">K</span>
+                    </button>
+
                     {/* Sermon Mode Toggle */}
                     {onSermonModeToggle && (
                         <button
                             onClick={onSermonModeToggle}
                             className={`p-3 rounded-full transition-all duration-300 ${sermonMode
-                                    ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+                                ? 'bg-accent text-accent-foreground shadow-lg shadow-accent/30'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
                                 }`}
                             title={sermonMode ? 'Sermon Mode (Always Listening)' : 'Normal Mode (Tap to Talk)'}
                         >
@@ -133,6 +146,7 @@ const Navigation: React.FC<NavigationProps> = ({
 
                     <MobileNavLink to="/" label="Search" active={isActive('/')} onClick={() => setMobileMenuOpen(false)} icon={<Search className="w-4 h-4" />} />
                     <MobileNavLink to="/read" label="Read" active={isActive('/read')} onClick={() => setMobileMenuOpen(false)} icon={<BookOpen className="w-4 h-4" />} />
+                    <MobileNavLink to="/dashboard" label="Devotional" active={isActive('/dashboard')} onClick={() => setMobileMenuOpen(false)} icon={<Heart className="w-4 h-4" />} />
                     <MobileNavLink to="/about" label="About" active={isActive('/about')} onClick={() => setMobileMenuOpen(false)} />
 
                     <div className="h-px bg-border/50 my-1 mx-2" />

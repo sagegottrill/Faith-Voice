@@ -10,10 +10,13 @@ import VoiceTranscript from './VoiceTranscript';
 import VerseDisplay from './VerseDisplay';
 import ExamplePhrases from './ExamplePhrases';
 import SavedVersesPanel from './SavedVersesPanel';
+import CommandPalette from './CommandPalette';
 import { useSemanticSearch } from '@/hooks/useSemanticSearch';
+import { useReadingStats } from '@/hooks/useReadingStats';
 import { classifyIntent } from '@/utils/intentClassifier';
+import { isTopicQuery, extractTopicKeyword, searchTopics } from '@/utils/topicIndex';
 import { voiceFeedback } from '@/utils/voiceFeedback';
-import { Search, Bookmark, Sparkles } from 'lucide-react';
+import { Search, Bookmark, Sparkles, Mic, Zap } from 'lucide-react';
 
 interface VerseResponse {
     verses: Verse[];
@@ -56,6 +59,8 @@ const AppLayout: React.FC = () => {
     const [showSavedPanel, setShowSavedPanel] = useState(false);
     const [lastIntent, setLastIntent] = useState<string | null>(null);
     const [presentationMode, setPresentationMode] = useState(false);
+    const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+    const { trackChapter, trackSearch } = useReadingStats();
     const [sermonMode, setSermonMode] = useState(() => {
         const saved = localStorage.getItem('faith-voice-sermon-mode');
         return saved === 'true';
@@ -187,12 +192,59 @@ const AppLayout: React.FC = () => {
                 }
 
                 fetchVerses(smartResult.ref);
+                trackSearch();
             } else if (transcript.trim().length > 0) {
-                // Fallback: keyword search
-                setIsLoading(true);
-                voiceFeedback.confirmSearch(transcript.trim());
+                const trimmed = transcript.trim();
 
-                bibleService.search(transcript.trim()).then(searchResults => {
+                // ========== TOPIC QUERY DETECTION ==========
+                // "Verses about love", "What does the Bible say about fear", etc.
+                if (isTopicQuery(trimmed)) {
+                    const keyword = extractTopicKeyword(trimmed);
+                    const topicResults = searchTopics(keyword);
+
+                    if (topicResults.length > 0) {
+                        const topic = topicResults[0];
+                        console.log('Topic match:', topic.topic, '→', topic.verses.length, 'verses');
+                        voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`);
+
+                        // Fetch the first verse to display the chapter, then show all topic verses
+                        const firstVerse = topic.verses[0];
+                        const ref = parseVerseReference(firstVerse.reference);
+                        if (ref) {
+                            fetchVerses(ref);
+                            setReference(`${topic.topic}: ${topic.verses.length} verses`);
+                            setTranslation('KJV • Topic Match');
+                        }
+                        trackSearch();
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // Also try topic match even without "verses about" prefix
+                const directTopics = searchTopics(trimmed);
+                if (directTopics.length > 0 && directTopics[0].aliases.some(a => trimmed.toLowerCase() === a)) {
+                    const topic = directTopics[0];
+                    console.log('Direct topic match:', topic.topic);
+                    voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`);
+                    const firstVerse = topic.verses[0];
+                    const ref = parseVerseReference(firstVerse.reference);
+                    if (ref) {
+                        fetchVerses(ref);
+                        setReference(`${topic.topic}: ${topic.verses.length} verses`);
+                        setTranslation('KJV • Topic Match');
+                    }
+                    trackSearch();
+                    setIsLoading(false);
+                    return;
+                }
+
+                // ========== KEYWORD SEARCH FALLBACK ==========
+                setIsLoading(true);
+                voiceFeedback.confirmSearch(trimmed);
+                trackSearch();
+
+                bibleService.search(trimmed).then(searchResults => {
                     if (searchResults.length > 0) {
                         setVerses(searchResults);
                         setReference(`Search: "${transcript}"`);
@@ -253,20 +305,73 @@ const AppLayout: React.FC = () => {
 
     // Handle example phrase click
     const handlePhraseClick = (phrase: string) => {
+        resetTranscript();
+        setVerses([]);
+        setFetchError(null);
+
+        // Try direct verse reference first
         const ref = parseVerseReference(phrase);
         if (ref) {
-            resetTranscript();
-            setVerses([]);
-            setFetchError(null);
             fetchVerses(ref);
+            trackSearch();
+            return;
         }
+
+        // Try topic query
+        if (isTopicQuery(phrase)) {
+            const keyword = extractTopicKeyword(phrase);
+            const topicResults = searchTopics(keyword);
+            if (topicResults.length > 0) {
+                const topic = topicResults[0];
+                const firstVerse = topic.verses[0];
+                const topicRef = parseVerseReference(firstVerse.reference);
+                if (topicRef) {
+                    fetchVerses(topicRef);
+                    setReference(`${topic.topic}: ${topic.verses.length} verses`);
+                    setTranslation('KJV • Topic Match');
+                }
+                trackSearch();
+                return;
+            }
+        }
+
+        // Direct topic word match (e.g., just "love")
+        const directTopics = searchTopics(phrase);
+        if (directTopics.length > 0) {
+            const topic = directTopics[0];
+            const firstVerse = topic.verses[0];
+            const topicRef = parseVerseReference(firstVerse.reference);
+            if (topicRef) {
+                fetchVerses(topicRef);
+                setReference(`${topic.topic}: ${topic.verses.length} verses`);
+                setTranslation('KJV • Topic Match');
+            }
+            trackSearch();
+            return;
+        }
+
+        // Fallback: keyword search
+        setIsLoading(true);
+        bibleService.search(phrase).then(searchResults => {
+            if (searchResults.length > 0) {
+                setVerses(searchResults);
+                setReference(`Search: "${phrase}"`);
+                const currentTrans = bibleService.getCurrentTranslation();
+                setTranslation(currentTrans.name);
+            } else {
+                setFetchError(`No verses found for "${phrase}"`);
+            }
+            setIsLoading(false);
+        });
+        trackSearch();
     };
 
     // Handle manual input submit
     const handleManualSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (manualInput.trim()) {
-            const ref = parseVerseReference(manualInput);
+            const trimmed = manualInput.trim();
+            const ref = parseVerseReference(trimmed);
             if (ref) {
                 resetTranscript();
                 setVerses([]);
@@ -274,10 +379,32 @@ const AppLayout: React.FC = () => {
                 fetchVerses(ref);
                 setManualInput('');
                 setShowManualInput(false);
+                trackSearch();
             } else {
-                // Perform Search on BibleService
+                // Try topic query first
+                const topicMatch = isTopicQuery(trimmed) ? searchTopics(extractTopicKeyword(trimmed)) : searchTopics(trimmed);
+                if (topicMatch.length > 0) {
+                    const topic = topicMatch[0];
+                    const firstVerse = topic.verses[0];
+                    const topicRef = parseVerseReference(firstVerse.reference);
+                    if (topicRef) {
+                        resetTranscript();
+                        setVerses([]);
+                        setFetchError(null);
+                        fetchVerses(topicRef);
+                        setReference(`${topic.topic}: ${topic.verses.length} verses`);
+                        setTranslation('KJV • Topic Match');
+                    }
+                    setManualInput('');
+                    setShowManualInput(false);
+                    trackSearch();
+                    return;
+                }
+
+                // Keyword search fallback
                 setIsLoading(true);
-                bibleService.search(manualInput.trim()).then(searchResults => {
+                trackSearch();
+                bibleService.search(trimmed).then(searchResults => {
                     if (searchResults.length > 0) {
                         setVerses(searchResults);
                         setReference(`Search: "${manualInput}"`);
@@ -292,7 +419,6 @@ const AppLayout: React.FC = () => {
                         // Fallback to Semantic Search
                         if (isSemanticReady) {
                             setFetchError(null);
-                            // setIsLoading(true);
                             semanticSearch(manualInput).then(results => {
                                 if (results.length > 0) {
                                     const topResult = results[0];
@@ -352,10 +478,17 @@ const AppLayout: React.FC = () => {
         fetchVerses({ book, chapter, verse });
     };
 
-    // Keyboard navigation
+    // Keyboard navigation + ⌘K
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (showSavedPanel) return;
+            // ⌘K / Ctrl+K — Command Palette
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setCommandPaletteOpen(prev => !prev);
+                return;
+            }
+
+            if (showSavedPanel || commandPaletteOpen) return;
 
             if (verses.length > 0) {
                 if (e.key === 'ArrowLeft') {
@@ -374,7 +507,7 @@ const AppLayout: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [verses, currentRef, showSavedPanel]);
+    }, [verses, currentRef, showSavedPanel, commandPaletteOpen]);
 
     const showVerseDisplay = verses.length > 0 || isLoading || fetchError;
 
@@ -427,16 +560,18 @@ const AppLayout: React.FC = () => {
                     {!showVerseDisplay && (
                         <div className="animate-in fade-in duration-700">
 
-                            {/* Daily Greeting Area */}
-                            <div className="text-center mb-12 py-8">
-                                <span className="inline-block py-1 px-3 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold uppercase tracking-widest mb-4">
-                                    Daily Devotion
-                                </span>
+                            {/* Voice-First Hero */}
+                            <div className="text-center mb-10 py-6">
+                                <div className="inline-flex items-center gap-2 py-1.5 px-4 rounded-full bg-accent/10 border border-accent/20 text-accent text-xs font-bold uppercase tracking-widest mb-5">
+                                    <Zap className="w-3 h-3" />
+                                    Voice-Powered Bible Search
+                                </div>
                                 <h2 className="text-4xl md:text-6xl font-serif text-foreground mb-4 font-bold tracking-tight">
-                                    Good Morning.
+                                    Speak the Word.
                                 </h2>
                                 <p className="text-muted-foreground max-w-xl mx-auto text-lg leading-relaxed text-balance">
-                                    Connect with the Word through your voice. What scripture is on your heart today?
+                                    Say any verse, topic, or question — and hear God's Word instantly.
+                                    No typing needed.
                                 </p>
                             </div>
 
@@ -499,7 +634,7 @@ const AppLayout: React.FC = () => {
                                     <div className="lush-card p-5">
                                         <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-4">Try Saying</h3>
                                         <div className="flex flex-col gap-2">
-                                            {["Psalm 23", "John 3:16", "The Lord is my shepherd", "Romans 8:28"].map(phrase => (
+                                            {["Psalm 23", "John 3:16", "Verses about love", "The Lord is my shepherd", "What does the Bible say about fear"].map(phrase => (
                                                 <button
                                                     key={phrase}
                                                     onClick={() => handlePhraseClick(phrase)}
@@ -585,6 +720,9 @@ const AppLayout: React.FC = () => {
                 onUpdateNote={updateNote}
                 onVerseClick={handleSavedVerseClick}
             />
+
+            {/* Command Palette */}
+            <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
         </div>
     );
 };
