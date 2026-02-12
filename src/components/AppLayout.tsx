@@ -15,8 +15,11 @@ import { useSemanticSearch } from '@/hooks/useSemanticSearch';
 import { useReadingStats } from '@/hooks/useReadingStats';
 import { classifyIntent } from '@/utils/intentClassifier';
 import { isTopicQuery, extractTopicKeyword, searchTopics } from '@/utils/topicIndex';
+import { getCuteError, getCuteLoading } from '@/utils/cuteErrors';
 import { voiceFeedback } from '@/utils/voiceFeedback';
-import { Search, Bookmark, Sparkles, Mic, Zap } from 'lucide-react';
+import { groqBible } from '@/utils/groqBible';
+import { Search, Bookmark, Sparkles, Mic, Zap, BrainCircuit, CloudOff } from 'lucide-react';
+import { toast } from "sonner";
 
 interface VerseResponse {
     verses: Verse[];
@@ -244,6 +247,75 @@ const AppLayout: React.FC = () => {
                 voiceFeedback.confirmSearch(trimmed);
                 trackSearch();
 
+                // Check for COMPLEX AI QUERY (The "Dangerous" Part)
+                if (groqBible.isComplexQuery(trimmed)) {
+                    console.log('Complex query detected, asking Groq AI...');
+                    const loadingMsg = getCuteLoading();
+                    toast.info(loadingMsg, { duration: 3000, icon: '🤔' });
+
+                    // Don't wait for keyword search, start AI immediately
+                    groqBible.ask(trimmed).then(aiResponse => {
+                        console.log('Groq AI Response:', aiResponse);
+                        if (aiResponse.references.length > 0) {
+                            // Perfect! AI found verses.
+                            // 1. Speak the answer (optional, or just confirm)
+                            if (aiResponse.answer) {
+                                voiceFeedback.speak(aiResponse.answer); // Speak the AI's concise answer
+                            }
+
+                            // 2. Parse the first reference to display
+                            // (Future: support displaying multiple distinct passages)
+                            const firstRef = parseVerseReference(aiResponse.references[0]);
+                            if (firstRef) {
+                                fetchVerses(firstRef);
+                                setReference(aiResponse.references[0]);
+                                setTranslation('KJV • AI Match');
+                                setIsLoading(false);
+                            }
+                        } else {
+                            // AI failed to find verses, fallback to standard keyword search results
+                            bibleService.search(trimmed).then(searchResults => {
+                                // ... (existing logic)
+                                if (searchResults.length > 0) {
+                                    setVerses(searchResults);
+                                    setReference(`Search: "${transcript}"`);
+                                    const currentTrans = bibleService.getCurrentTranslation();
+                                    setTranslation(currentTrans.name);
+                                    setFetchError(null);
+                                } else {
+                                    const cuteErr = getCuteError();
+                                    setFetchError(cuteErr);
+                                    toast.error(cuteErr);
+
+                                    // (Semantic fallback here)
+                                    if (isSemanticReady) {
+                                        setFetchError(null);
+                                        semanticSearch(transcript).then(results => {
+                                            if (results.length > 0) {
+                                                const topResult = results[0];
+                                                const ref = parseVerseReference(topResult.reference);
+                                                if (ref) {
+                                                    fetchVerses(ref);
+                                                    setReference(formatVerseReference(ref));
+                                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                                }
+                                            } else {
+                                                const finalErr = getCuteError();
+                                                setFetchError(finalErr);
+                                                voiceFeedback.error("I couldn't find that.");
+                                            }
+                                            setIsLoading(false);
+                                        });
+                                    }
+                                }
+                                setIsLoading(false);
+                            });
+                        }
+                    });
+                    return; // Early return to let AI handle it
+                }
+
+                // Standard keyword search (Fast path)
                 bibleService.search(trimmed).then(searchResults => {
                     if (searchResults.length > 0) {
                         setVerses(searchResults);
@@ -398,6 +470,69 @@ const AppLayout: React.FC = () => {
                     setManualInput('');
                     setShowManualInput(false);
                     trackSearch();
+                    return;
+                }
+
+                // Check for COMPLEX AI QUERY
+                if (groqBible.isComplexQuery(trimmed)) {
+                    console.log('Manual complex query, asking Groq AI...');
+                    const loadingMsg = getCuteLoading();
+                    toast.info(loadingMsg, { duration: 3000, icon: '🤔' });
+                    setIsLoading(true);
+
+                    groqBible.ask(trimmed).then(aiResponse => {
+                        if (aiResponse.references.length > 0) {
+                            if (aiResponse.answer) {
+                                voiceFeedback.speak(aiResponse.answer);
+                            }
+                            const firstRef = parseVerseReference(aiResponse.references[0]);
+                            if (firstRef) {
+                                fetchVerses(firstRef);
+                                setReference(aiResponse.references[0]);
+                                setTranslation('KJV • AI Match');
+                            }
+                        } else {
+                            // Fallback to keyword search if AI fails
+                            bibleService.search(trimmed).then(searchResults => {
+                                if (searchResults.length > 0) {
+                                    setVerses(searchResults);
+                                    setReference(`Search: "${manualInput}"`);
+                                    const currentTrans = bibleService.getCurrentTranslation();
+                                    setTranslation(currentTrans.name);
+                                    setFetchError(null);
+                                    setManualInput('');
+                                    setShowManualInput(false);
+                                } else {
+                                    const cuteErr = getCuteError();
+                                    setFetchError(cuteErr);
+                                    toast.error(cuteErr);
+
+                                    if (isSemanticReady) {
+                                        semanticSearch(manualInput).then(results => {
+                                            if (results.length > 0) {
+                                                const topResult = results[0];
+                                                const ref = parseVerseReference(topResult.reference);
+                                                if (ref) {
+                                                    fetchVerses(ref);
+                                                    setReference(formatVerseReference(ref));
+                                                    setTranslation(`KJV • ${Math.round(topResult.score * 100)}% match`);
+                                                }
+                                            } else {
+                                                const finalErr = getCuteError();
+                                                setFetchError(finalErr);
+                                            }
+                                            setIsLoading(false);
+                                        });
+                                        return;
+                                    }
+                                }
+                                setIsLoading(false);
+                            });
+                        }
+                        setManualInput('');
+                        setShowManualInput(false);
+                        setIsLoading(false);
+                    });
                     return;
                 }
 
