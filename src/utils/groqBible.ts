@@ -172,6 +172,15 @@ class GroqBibleService {
             /read more/i,
             /continue/i,
             /previous/i,
+            /(story|parable|history|life|miracle) of/i,
+            /tell me about/i,
+            /talk about/i,
+            /who (is|was|were)/i,
+            /relationship between/i,
+            /meaning of/i,
+            /prophecy of/i,
+            /significance of/i,
+            /(david|goliath|moses|abraham|isaac|jacob|joseph|mary|peter|paul|john|judas|pilate|pharaoh|nebuchadnezzar|noah|ark|creation|flood|babel|exodus|ten commandments)/i,
         ];
 
         return aiPatterns.some(p => p.test(q));
