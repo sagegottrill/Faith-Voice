@@ -13,8 +13,11 @@ export class VoiceFeedback {
         this.enabled = enabled;
     }
 
-    speak(text: string, options: { rate?: number; pitch?: number; volume?: number } = {}) {
-        if (!this.enabled || !this.synth) return;
+    speak(text: string, options: { rate?: number; pitch?: number; volume?: number; onStart?: () => void; onEnd?: () => void } = {}) {
+        if (!this.enabled || !this.synth) {
+            options.onEnd?.();
+            return;
+        }
 
         // Cancel any ongoing speech
         this.synth.cancel();
@@ -23,6 +26,13 @@ export class VoiceFeedback {
         utterance.rate = options.rate ?? 1.2; // Faster for responsiveness
         utterance.pitch = options.pitch ?? 1.0;
         utterance.volume = options.volume ?? 0.8;
+
+        if (options.onStart) utterance.onstart = options.onStart;
+        if (options.onEnd) utterance.onend = options.onEnd;
+        utterance.onerror = (e) => {
+            console.error('Speech synthesis error:', e);
+            options.onEnd?.();
+        };
 
         // Use a clear, professional voice if available
         const voices = this.synth.getVoices();
@@ -37,12 +47,12 @@ export class VoiceFeedback {
     }
 
     // Quick confirmations
-    confirmVerse(reference: string) {
-        this.speak(`${reference}`);
+    confirmVerse(reference: string, options?: { onStart?: () => void; onEnd?: () => void }) {
+        this.speak(`${reference}`, options);
     }
 
-    confirmSearch(query: string) {
-        this.speak(`Searching for ${query}`);
+    confirmSearch(query: string, options?: { onStart?: () => void; onEnd?: () => void }) {
+        this.speak(`Searching for ${query}`, options);
     }
 
     confirmMedia() {
@@ -53,8 +63,8 @@ export class VoiceFeedback {
         this.speak(`Switching to ${translation}`);
     }
 
-    error(message: string) {
-        this.speak(`Error: ${message}`, { pitch: 0.9 });
+    error(message: string, options?: { onStart?: () => void; onEnd?: () => void }) {
+        this.speak(`Error: ${message}`, { ...options, pitch: 0.9 });
     }
 }
 

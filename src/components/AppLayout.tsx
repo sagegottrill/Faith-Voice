@@ -188,7 +188,10 @@ const AppLayout: React.FC = () => {
 
                 // Voice feedback
                 const refText = formatVerseReference(smartResult.ref);
-                voiceFeedback.confirmVerse(refText);
+                voiceFeedback.confirmVerse(refText, {
+                    onStart: stopListening,
+                    onEnd: () => { if (sermonMode) startListening(); }
+                });
 
                 // Auto-switch translation if user specified one (e.g. "KJV version")
                 if (smartResult.translationId) {
@@ -212,7 +215,10 @@ const AppLayout: React.FC = () => {
                     if (topicResults.length > 0) {
                         const topic = topicResults[0];
                         console.log('Topic match:', topic.topic, '→', topic.verses.length, 'verses');
-                        voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`);
+                        voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`, {
+                            onStart: stopListening,
+                            onEnd: () => { if (sermonMode) startListening(); }
+                        });
 
                         // Fetch the first verse to display the chapter, then show all topic verses
                         const firstVerse = topic.verses[0];
@@ -233,7 +239,10 @@ const AppLayout: React.FC = () => {
                 if (directTopics.length > 0 && directTopics[0].aliases.some(a => trimmed.toLowerCase() === a)) {
                     const topic = directTopics[0];
                     console.log('Direct topic match:', topic.topic);
-                    voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`);
+                    voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`, {
+                        onStart: stopListening,
+                        onEnd: () => { if (sermonMode) startListening(); }
+                    });
                     const firstVerse = topic.verses[0];
                     const ref = parseVerseReference(firstVerse.reference);
                     if (ref) {
@@ -248,7 +257,10 @@ const AppLayout: React.FC = () => {
 
                 // ========== KEYWORD SEARCH FALLBACK ==========
                 setIsLoading(true);
-                voiceFeedback.confirmSearch(trimmed);
+                voiceFeedback.confirmSearch(trimmed, {
+                    onStart: stopListening,
+                    onEnd: () => { if (sermonMode) startListening(); }
+                });
                 trackSearch();
 
                 // Check for COMPLEX AI QUERY (The "Dangerous" Part)
@@ -264,7 +276,10 @@ const AppLayout: React.FC = () => {
                             // Perfect! AI found verses.
                             // 1. Speak the answer (optional, or just confirm)
                             if (aiResponse.answer) {
-                                voiceFeedback.speak(aiResponse.answer); // Speak the AI's concise answer
+                                voiceFeedback.speak(aiResponse.answer, {
+                                    onStart: stopListening,
+                                    onEnd: () => { if (sermonMode) startListening(); }
+                                }); // Speak the AI's concise answer
                             }
 
                             // 2. Parse the first reference to display
@@ -487,7 +502,10 @@ const AppLayout: React.FC = () => {
                     groqBible.ask(trimmed).then(aiResponse => {
                         if (aiResponse.references.length > 0) {
                             if (aiResponse.answer) {
-                                voiceFeedback.speak(aiResponse.answer);
+                                voiceFeedback.speak(aiResponse.answer, {
+                                    onStart: stopListening,
+                                    onEnd: () => { if (sermonMode) startListening(); }
+                                });
                             }
                             const firstRef = parseVerseReference(aiResponse.references[0]);
                             if (firstRef) {
