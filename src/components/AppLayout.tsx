@@ -173,8 +173,12 @@ const AppLayout: React.FC = () => {
             // 2. Smart NLP Parse — the brain
             const smartResult = smartParse(transcript);
 
-            // If narrative AND smart parse found nothing, ignore
-            if (intent.type === 'NARRATIVE' && !smartResult) {
+            // Allow "Narrative" if it looks like a Topic or AI query
+            const trimmed = transcript.trim();
+            const isPotentialQuery = isTopicQuery(trimmed) || groqBible.isComplexQuery(trimmed);
+
+            // If narrative AND smart parse found nothing AND it's not a potential query, verify silence/ignore
+            if (intent.type === 'NARRATIVE' && !smartResult && !isPotentialQuery) {
                 console.log('Ignored Narrative:', transcript);
                 return;
             }
