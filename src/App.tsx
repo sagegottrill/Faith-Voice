@@ -10,6 +10,8 @@ import ReadPage from "./pages/Read";
 import AboutPage from "./pages/About";
 import Dashboard from "./pages/Dashboard";
 import ProjectorView from "./pages/ProjectorView";
+import HymnsPage from "./pages/HymnsPage";
+import OBSView from "./pages/OBSView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +28,8 @@ const App = () => (
             <Route path="/read" element={<ReadPage />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/projector" element={<ProjectorView />} />
+            <Route path="/hymns" element={<HymnsPage />} />
+            <Route path="/obs" element={<OBSView />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

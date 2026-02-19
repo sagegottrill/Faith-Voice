@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ThemeToggle } from './ThemeToggle';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Mic, MicOff, Command, Heart } from 'lucide-react';
+import { BookOpen, Search, Keyboard, Bookmark, Menu, X, Mic, MicOff, Command, Heart, Music } from 'lucide-react';
 
 interface NavigationProps {
     onManualSearchClick?: () => void;
@@ -68,6 +68,7 @@ const Navigation: React.FC<NavigationProps> = ({
                     <NavLink to="/" label="Search" active={isActive('/')} icon={<Search className="w-4 h-4" />} />
                     <NavLink to="/read" label="Read" active={isActive('/read')} icon={<BookOpen className="w-4 h-4" />} />
                     <NavLink to="/dashboard" label="Devotional" active={isActive('/dashboard')} icon={<Heart className="w-4 h-4" />} />
+                    <NavLink to="/hymns" label="Hymns" active={isActive('/hymns')} icon={<Music className="w-4 h-4" />} />
                     <NavLink to="/about" label="About" active={isActive('/about')} />
                 </div>
 
@@ -147,6 +148,7 @@ const Navigation: React.FC<NavigationProps> = ({
                     <MobileNavLink to="/" label="Search" active={isActive('/')} onClick={() => setMobileMenuOpen(false)} icon={<Search className="w-4 h-4" />} />
                     <MobileNavLink to="/read" label="Read" active={isActive('/read')} onClick={() => setMobileMenuOpen(false)} icon={<BookOpen className="w-4 h-4" />} />
                     <MobileNavLink to="/dashboard" label="Devotional" active={isActive('/dashboard')} onClick={() => setMobileMenuOpen(false)} icon={<Heart className="w-4 h-4" />} />
+                    <MobileNavLink to="/hymns" label="Hymns" active={isActive('/hymns')} onClick={() => setMobileMenuOpen(false)} icon={<Music className="w-4 h-4" />} />
                     <MobileNavLink to="/about" label="About" active={isActive('/about')} onClick={() => setMobileMenuOpen(false)} />
 
                     <div className="h-px bg-border/50 my-1 mx-2" />

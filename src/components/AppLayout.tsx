@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navigation from './Navigation';
 import { bibleService } from '@/utils/bibleService';
-import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useVoiceEngine } from '@/hooks/useVoiceEngine';
 import { useSavedVerses } from '@/hooks/useSavedVerses';
 import { smartParse, parseVerseReference, formatVerseReference } from '@/utils/bibleParser';
 import { VerseReference, Verse } from '@/utils/bibleData';
@@ -18,8 +18,10 @@ import { isTopicQuery, extractTopicKeyword, searchTopics } from '@/utils/topicIn
 import { getCuteError, getCuteLoading } from '@/utils/cuteErrors';
 import { voiceFeedback } from '@/utils/voiceFeedback';
 import { groqBible } from '@/utils/groqBible';
-import { Search, Bookmark, Sparkles, Mic, Zap, BrainCircuit, CloudOff } from 'lucide-react';
+import { getHymnByNumber, extractHymnNumber, searchHymns } from '@/data/sacredSongs';
+import { Search, Bookmark, Sparkles, Mic, Zap, BrainCircuit, CloudOff, WifiOff } from 'lucide-react';
 import { toast } from "sonner";
+import { useNavigate } from 'react-router-dom';
 
 interface VerseResponse {
     verses: Verse[];
@@ -29,6 +31,7 @@ interface VerseResponse {
 }
 
 const AppLayout: React.FC = () => {
+    const navigate = useNavigate();
     const {
         transcript,
         interimTranscript,
@@ -37,8 +40,11 @@ const AppLayout: React.FC = () => {
         error: speechError,
         startListening,
         stopListening,
-        resetTranscript
-    } = useSpeechRecognition();
+        resetTranscript,
+        muteMic,
+        unmuteMic,
+        isOffline,
+    } = useVoiceEngine();
 
     const {
         savedVerses,
@@ -146,7 +152,7 @@ const AppLayout: React.FC = () => {
             console.log("Auto-submitting due to silence...");
             stopListening();
             // The useEffect below will handle the actual processing when isListening becomes false
-        }, 800); // 0.8s silence timeout (Faster response)
+        }, 500); // 0.5s silence timeout (Faster response)
 
         return () => clearTimeout(timer);
     }, [transcript, isListening, stopListening]);
@@ -167,6 +173,59 @@ const AppLayout: React.FC = () => {
                 console.log("Media Intent Detected");
                 togglePresentationMode();
                 setReference("Presentation Mode Toggled");
+                // Restart listening in sermon mode
+                if (sermonMode) {
+                    resetTranscript();
+                    startListening();
+                }
+                return;
+            }
+
+            // Handle Hymn Intent
+            if (intent.type === 'HYMN') {
+                console.log("Hymn Intent Detected");
+                const hymnNum = extractHymnNumber(transcript);
+                if (hymnNum) {
+                    const hymn = getHymnByNumber(hymnNum);
+                    if (hymn) {
+                        voiceFeedback.speak(`Hymn ${hymnNum}, ${hymn.title}`, {
+                            onStart: muteMic,
+                            onEnd: () => {
+                                unmuteMic();
+                                if (sermonMode) {
+                                    resetTranscript();
+                                    startListening();
+                                }
+                            }
+                        });
+                        toast.success(`Opening Hymn #${hymnNum}: ${hymn.title}`, { icon: '🎵' });
+                        navigate('/hymns');
+                        // Signal hymn selection
+                        setTimeout(() => {
+                            window.dispatchEvent(new CustomEvent('select-hymn', { detail: hymnNum }));
+                        }, 500);
+                    } else {
+                        toast.error(`Hymn #${hymnNum} not found`);
+                    }
+                } else {
+                    // Try title search
+                    const results = searchHymns(transcript.replace(/\b(hymn|song|sacred song|sing)\b/gi, '').trim());
+                    if (results.length > 0) {
+                        voiceFeedback.speak(`Found ${results[0].title}`, {
+                            onStart: muteMic,
+                            onEnd: () => {
+                                unmuteMic();
+                                if (sermonMode) {
+                                    resetTranscript();
+                                    startListening();
+                                }
+                            }
+                        });
+                        navigate('/hymns');
+                    } else {
+                        toast.error('Hymn not found. Try a number or title.');
+                    }
+                }
                 return;
             }
 
@@ -175,11 +234,16 @@ const AppLayout: React.FC = () => {
 
             // Allow "Narrative" if it looks like a Topic or AI query
             const trimmed = transcript.trim();
-            const isPotentialQuery = isTopicQuery(trimmed) || groqBible.isComplexQuery(trimmed);
+            const isPotentialQuery = isTopicQuery(trimmed) || (!isOffline && groqBible.isComplexQuery(trimmed));
 
             // If narrative AND smart parse found nothing AND it's not a potential query, verify silence/ignore
             if (intent.type === 'NARRATIVE' && !smartResult && !isPotentialQuery) {
                 console.log('Ignored Narrative:', transcript);
+                // Restart listening in sermon mode
+                if (sermonMode) {
+                    resetTranscript();
+                    startListening();
+                }
                 return;
             }
 
@@ -189,8 +253,14 @@ const AppLayout: React.FC = () => {
                 // Voice feedback
                 const refText = formatVerseReference(smartResult.ref);
                 voiceFeedback.confirmVerse(refText, {
-                    onStart: stopListening,
-                    onEnd: () => { if (sermonMode) startListening(); }
+                    onStart: muteMic,
+                    onEnd: () => {
+                        unmuteMic();
+                        if (sermonMode) {
+                            resetTranscript();
+                            startListening();
+                        }
+                    }
                 });
 
                 // Auto-switch translation if user specified one (e.g. "KJV version")
@@ -216,8 +286,14 @@ const AppLayout: React.FC = () => {
                         const topic = topicResults[0];
                         console.log('Topic match:', topic.topic, '→', topic.verses.length, 'verses');
                         voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`, {
-                            onStart: stopListening,
-                            onEnd: () => { if (sermonMode) startListening(); }
+                            onStart: muteMic,
+                            onEnd: () => {
+                                unmuteMic();
+                                if (sermonMode) {
+                                    resetTranscript();
+                                    startListening();
+                                }
+                            }
                         });
 
                         // Fetch the first verse to display the chapter, then show all topic verses
@@ -240,8 +316,14 @@ const AppLayout: React.FC = () => {
                     const topic = directTopics[0];
                     console.log('Direct topic match:', topic.topic);
                     voiceFeedback.confirmSearch(`${topic.topic} — ${topic.verses.length} verses`, {
-                        onStart: stopListening,
-                        onEnd: () => { if (sermonMode) startListening(); }
+                        onStart: muteMic,
+                        onEnd: () => {
+                            unmuteMic();
+                            if (sermonMode) {
+                                resetTranscript();
+                                startListening();
+                            }
+                        }
                     });
                     const firstVerse = topic.verses[0];
                     const ref = parseVerseReference(firstVerse.reference);
@@ -258,13 +340,19 @@ const AppLayout: React.FC = () => {
                 // ========== KEYWORD SEARCH FALLBACK ==========
                 setIsLoading(true);
                 voiceFeedback.confirmSearch(trimmed, {
-                    onStart: stopListening,
-                    onEnd: () => { if (sermonMode) startListening(); }
+                    onStart: muteMic,
+                    onEnd: () => {
+                        unmuteMic();
+                        if (sermonMode) {
+                            resetTranscript();
+                            startListening();
+                        }
+                    }
                 });
                 trackSearch();
 
                 // Check for COMPLEX AI QUERY (The "Dangerous" Part)
-                if (groqBible.isComplexQuery(trimmed)) {
+                if (!isOffline && groqBible.isComplexQuery(trimmed)) {
                     console.log('Complex query detected, asking Groq AI...');
                     const loadingMsg = getCuteLoading();
                     toast.info(loadingMsg, { duration: 3000, icon: '🤔' });
@@ -277,8 +365,14 @@ const AppLayout: React.FC = () => {
                             // 1. Speak the answer (optional, or just confirm)
                             if (aiResponse.answer) {
                                 voiceFeedback.speak(aiResponse.answer, {
-                                    onStart: stopListening,
-                                    onEnd: () => { if (sermonMode) startListening(); }
+                                    onStart: muteMic,
+                                    onEnd: () => {
+                                        unmuteMic();
+                                        if (sermonMode) {
+                                            resetTranscript();
+                                            startListening();
+                                        }
+                                    }
                                 }); // Speak the AI's concise answer
                             }
 

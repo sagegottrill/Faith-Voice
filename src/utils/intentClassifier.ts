@@ -1,6 +1,7 @@
 import { BIBLE_BOOKS } from './bibleData';
+import { isHymnRequest } from '@/data/sacredSongs';
 
-export type IntentType = 'COMMAND' | 'NARRATIVE' | 'MEDIA' | 'UNCERTAIN';
+export type IntentType = 'COMMAND' | 'NARRATIVE' | 'MEDIA' | 'HYMN' | 'UNCERTAIN';
 
 interface IntentResult {
     type: IntentType;
@@ -27,6 +28,11 @@ const SCRIPTURE_PREFIXES = [
     'bible says', 'scripture says', 'book of', 'letter to', 'gospel of'
 ];
 
+const HYMN_TRIGGERS = [
+    'hymn', 'sacred song', 'sacred songs and solos', 'sacred songs',
+    'sing', 'song number', 'hymn number'
+];
+
 export const classifyIntent = (text: string, customWakeWords: string[] = []): IntentResult => {
     const normalized = text.toLowerCase().trim();
 
@@ -37,6 +43,12 @@ export const classifyIntent = (text: string, customWakeWords: string[] = []): In
     // Combine default and any custom ones
     const wakeWords = [...DEFAULT_WAKE_WORDS, ...customWakeWords.map(w => w.toLowerCase())];
     const hasWakeWord = wakeWords.some(wake => normalized.includes(wake));
+
+    // 0. Check for Hymn Request (before Bible references)
+    const hasHymnTrigger = HYMN_TRIGGERS.some(trigger => normalized.includes(trigger));
+    if (hasHymnTrigger || isHymnRequest(normalized)) {
+        return { type: 'HYMN', confidence: 0.95, reason: 'Hymn request detected' };
+    }
 
     // 1. Check for Direct Scripture Reference (Strongest Signal)
     // Build a massive regex of all names AND abbreviations
